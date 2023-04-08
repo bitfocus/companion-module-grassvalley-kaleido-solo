@@ -1,0 +1,19 @@
+{
+	"name": "grassvalley-kaleido-solo",
+	"version": "1.0.0",
+	"api_version": "1.0.0",
+	"keywords": [
+		"Hardware",
+		"Multiviewer"
+	],
+	"manufacturer": "Grass Valley",
+	"product": "Kaleido Solo",
+	"shortname": "Kaleido Solo",
+	"description": "Kaleido Solo module for Companion",
+	"main": "index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"author": "Imre Liessens",
+	"license": "MIT"
+}
