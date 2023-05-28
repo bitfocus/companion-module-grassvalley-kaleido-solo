@@ -1,0 +1,30 @@
+{
+	"id": "grassvalley-kaleido-solo",
+	"name": "grassvalley-kaleido-solo",
+	"shortname": "Kaleido Solo",
+	"description": "Kaleido Solo module for Companion",
+	"version": "2.0.0",
+	"license": "MIT",
+	"repository": "https://github.com/bitfocus/companion-module-grassvalley-kaleido-solo.git",
+	"bugs": "https://github.com/bitfocus/companion-module-grassvalley-kaleido-solo/issues",
+	"maintainers": [
+		{
+			"name": "Imre Liessens"
+		}
+	],
+	"legacyIds": [],
+	"runtime": {
+		"type": "node18",
+		"api": "nodejs-ipc",
+		"apiVersion": "0.0.0",
+		"entrypoint": "..\\index.js"
+	},
+	"manufacturer": "Grass Valley",
+	"products": [
+		"Kaleido Solo"
+	],
+	"keywords": [
+		"Hardware",
+		"Multiviewer"
+	]
+}
