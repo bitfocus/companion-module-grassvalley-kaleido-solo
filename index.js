@@ -11,7 +11,6 @@ class KaleidoInstance extends InstanceBase {
 		this.config = config
 
 		this.updateStatus('ok')
-
 		this.updateActions() // export actions
 		
 		this.port = 13000;
@@ -34,7 +33,8 @@ class KaleidoInstance extends InstanceBase {
 		this.config = config
 		this.init_tcp();
 	}
-
+	
+	// Process data coming from the unit
 	incomingData(data) {
 		var self = this;
 		self.log("debug","received: "+data);
@@ -61,6 +61,7 @@ class KaleidoInstance extends InstanceBase {
 		}
 	};
 
+	// Set up connection
 	init_tcp() {
 		var self = this;
 		if (self.socket !== undefined) {
@@ -124,6 +125,7 @@ class KaleidoInstance extends InstanceBase {
 		]
 	};
 
+	// Add command to queue
 	queueCommand(command) {
 		var self = this;
 		
@@ -138,6 +140,7 @@ class KaleidoInstance extends InstanceBase {
 		}
 	};
 
+	// Send next command from queue if available
 	processQueue() {
 		var self = this;
 		
@@ -156,10 +159,10 @@ class KaleidoInstance extends InstanceBase {
 		}
 	}
 
+	// Generate command for tally state
 	tallyCommand(action) {
 		var state = "";
 		var id = 0;
-		var cmd = "";
 		
 		switch(action.options.color) {
 			case 'red':
