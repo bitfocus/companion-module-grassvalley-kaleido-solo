@@ -72,10 +72,8 @@ class KaleidoInstance extends InstanceBase {
 			self.socket = new TelnetHelper(this.config.host, this.port);
 
 			self.socket.on('status_change', function (status, message) {
-				self.log("debug","Socket status changed to"+status+message);
-				if (status !== "ok") {
-					self.updateStatus(status,message)
-				}
+				self.log("debug","Socket status changed to "+status);
+				self.updateStatus(status);
 			});
 
 			self.socket.on('error', function (err) {
@@ -86,7 +84,7 @@ class KaleidoInstance extends InstanceBase {
 				self.log("info","Connected");
 				
 				// Open session
-				self.queueCommand("<openID>" + self.config.host + "_0_4_0_0</openID>");
+				self.queueCommand(`<openID>${self.config.host}_0_4_0_0</openID>`);
 				
 				// Read layout names
 				self.queueCommand("<getKLayoutList/>");
@@ -131,6 +129,7 @@ class KaleidoInstance extends InstanceBase {
 		
 		self.commandQueue.push(command);
 		self.log("debug","Queued : "+command);
+		self.log("debug","Queue length : "+self.commandQueue.length);
 		
 		if (self.commandQueue.length == 1) { // If the new command is the only one
 			self.log("debug","-> Immediate send : " + command);
@@ -181,7 +180,7 @@ class KaleidoInstance extends InstanceBase {
 		var command = `<setKStatusMessage>set id="${id}" status="${state}"</setKStatusMessage>`;
 		this.queueCommand(command);
 	}
-	
+
 	updateActions() {
 		var self = this;
 		
@@ -210,8 +209,7 @@ class KaleidoInstance extends InstanceBase {
 				label: 'Critical (red)',
 			},
 		]
-		
-		
+
 		var actions = {
 			'tally': {
 				name: 'Set tally',
@@ -291,7 +289,7 @@ class KaleidoInstance extends InstanceBase {
 		
 		self.setActionDefinitions(actions);
 	};
-	
+
 }
 
 runEntrypoint(KaleidoInstance, UpgradeScripts)
