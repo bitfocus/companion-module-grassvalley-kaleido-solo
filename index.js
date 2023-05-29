@@ -37,20 +37,20 @@ class KaleidoInstance extends InstanceBase {
 
 	incomingData(data) {
 		var self = this;
-		debug(data);
+		self.log("debug","received: "+data);
 
-		self.status(self.STATUS_OK);
+		self.updateStatus('ok')
 		
 		// Process layouts response
 		if(self.commandQueue[0] == "<getKLayoutList/>") {
 			if(data== "<kLayoutList>") return;
 			
-			rawList = data.trim().split('"');
+			var rawList = data.trim().split('"');
 			rawList = rawList.filter(ele => (ele.trim() != "" && ele.trim() != "</kLayoutList>"))
 			
+			self.log("info","Received presets:" +rawList);
 			self.presetNames = rawList.map(ele => ({"id" : ele, "label": ele}))
-			debug(self.presetNames);
-			self.actions();
+			self.updateActions();
 		}
 		
 		// Process end of responses
@@ -72,7 +72,8 @@ class KaleidoInstance extends InstanceBase {
 			self.socket = new TelnetHelper(this.config.host, this.port);
 
 			self.socket.on('status_change', function (status, message) {
-				if (this !== self.STATUS_OK) {
+				self.log("debug","Socket status changed to"+status+message);
+				if (status !== "ok") {
 					self.updateStatus(status,message)
 				}
 			});
@@ -82,7 +83,7 @@ class KaleidoInstance extends InstanceBase {
 			});
 
 			self.socket.on('connect', function () {
-				self.log("Connected");
+				self.log("info","Connected");
 				
 				// Open session
 				self.queueCommand("<openID>" + self.config.host + "_0_4_0_0</openID>");
@@ -129,10 +130,10 @@ class KaleidoInstance extends InstanceBase {
 		var self = this;
 		
 		self.commandQueue.push(command);
-		debug("Queued : "+command);
+		self.log("debug","Queued : "+command);
 		
 		if (self.commandQueue.length == 1) { // If the new command is the only one
-			debug("-> Immediate send : " + command);
+			self.log("debug","-> Immediate send : " + command);
 			// Send right away
 			self.processQueue();
 		}
@@ -146,13 +147,13 @@ class KaleidoInstance extends InstanceBase {
 			return;
 		}
 		
-		command = self.commandQueue[0]; // Only remove from queue after response from device
-		debug("Sending: "+command);
+		var command = self.commandQueue[0]; // Only remove from queue after response from device
+		self.log("debug","Sending: "+command);
 		
-		if (self.socket !== undefined && self.socket.connected) {
-			self.socket.write(command+"\n");
+		if (self.socket !== undefined && self.socket.isConnected) {
+			self.socket.send(command+"\n");
 		} else {
-			debug('Socket not connected :(');
+			self.log("error","Socket not connected");
 		}
 	}
 
@@ -177,34 +178,13 @@ class KaleidoInstance extends InstanceBase {
 			state = "NORMAL";
 		}
 		
-		command = `<setKStatusMessage>set id="${id}" status="${state}"</setKStatusMessage>`;
-		this.queueCommand(command);
-	}
-
-	alarmCommand(action) {
-		state = action.options.state.toUpperCase();
-		command = `<setKStatusMessage>set id="0" status="${state}"</setKStatusMessage>`;
-		this.queueCommand(command);
-	}
-
-	UMDCommand(action) {
-		text = action.options.text;
-		
-		var command;
-		this.parseVariables(action.options.text, (value) => {
-			command = `<setKDynamicText>set address="0" text="${value}"</setKDynamicText>`;
-		})
-		
-		this.queueCommand(command);
-	}
-
-	presetCommand(action) {
-		name = action.options.name;
-		command = `<setKCurrentLayout>set ${name}</setKCurrentLayout>`;
+		var command = `<setKStatusMessage>set id="${id}" status="${state}"</setKStatusMessage>`;
 		this.queueCommand(command);
 	}
 	
 	updateActions() {
+		var self = this;
+		
 		var tallyColors = [
 			{
 				id: 'green',
@@ -250,7 +230,9 @@ class KaleidoInstance extends InstanceBase {
 						id: 'active',
 					},
 				],
-				callback: this.UMDCommand
+				callback: async (event) => {
+					self.tallyCommand(event);
+				},
 			},
 			'alarm': {
 				name: 'Set alarm state',
@@ -264,6 +246,11 @@ class KaleidoInstance extends InstanceBase {
 						choices: alarmStates,
 					},
 				],
+				callback: async (event) => {
+					var state = event.options.state.toUpperCase();
+					var command = `<setKStatusMessage>set id="0" status="${state}"</setKStatusMessage>`;
+					self.queueCommand(command);
+				},
 			},
 			'umd': {
 				name: 'Set UMD text',
@@ -277,6 +264,11 @@ class KaleidoInstance extends InstanceBase {
 						default: '',
 					},
 				],
+				callback: async (event) => {
+					const text = await this.parseVariablesInString(event.options.text)
+					var command = `<setKDynamicText>set address="0" text="${text}"</setKDynamicText>`;
+					self.queueCommand(command);
+				},
 			},
 			'preset': {
 				name: 'Recall preset',
@@ -287,13 +279,17 @@ class KaleidoInstance extends InstanceBase {
 						label: 'Preset name',
 						id: 'name',
 						default: 'USER PRESET 1',
-						choices: this.presetNames,
+						choices: self.presetNames,
 					},
 				],
+				callback: async (event) => {
+					var command = `<setKCurrentLayout>set ${event.options.name}</setKCurrentLayout>`;
+					this.queueCommand(command);
+				},
 			}
 		};
 		
-		this.setActionDefinitions(actions);
+		self.setActionDefinitions(actions);
 	};
 	
 }
