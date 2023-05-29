@@ -1,8 +1,6 @@
 const { InstanceBase, Regex, runEntrypoint, TelnetHelper } = require('@companion-module/base')
 const UpgradeScripts = require('./upgrades')
 
-var actions = require('./actions');
-
 class KaleidoInstance extends InstanceBase {
 	
 	constructor(internal) {
@@ -127,10 +125,6 @@ class KaleidoInstance extends InstanceBase {
 		]
 	};
 
-	updateActions() {
-		this.setActionDefinitions(actions.getActions(this.presetNames));
-	};
-
 	queueCommand(command) {
 		var self = this;
 		
@@ -209,6 +203,99 @@ class KaleidoInstance extends InstanceBase {
 		command = `<setKCurrentLayout>set ${name}</setKCurrentLayout>`;
 		this.queueCommand(command);
 	}
+	
+	updateActions() {
+		var tallyColors = [
+			{
+				id: 'green',
+				label: 'Green',
+			},
+			{
+				id: 'red',
+				label: 'Red',
+			},
+		];
+		
+		var alarmStates = [
+			{
+				id: 'normal',
+				label: 'Normal',
+			},
+			{
+				id: 'minor',
+				label: 'Minor (yellow)',
+			},
+			{
+				id: 'error',
+				label: 'Critical (red)',
+			},
+		]
+		
+		
+		var actions = {
+			'tally': {
+				name: 'Set tally',
+				description: 'Set tally boxes in UMD',
+				options: [
+					{
+						type: 'dropdown',
+						label: 'Color',
+						id: 'color',
+						default: 'green',
+						choices: tallyColors,
+					},
+					{
+						type: 'checkbox',
+						label: 'Active',
+						id: 'active',
+					},
+				],
+				callback: this.UMDCommand
+			},
+			'alarm': {
+				name: 'Set alarm state',
+				description: 'Set alarm border',
+				options: [
+					{
+						type: 'dropdown',
+						label: 'State',
+						id: 'state',
+						default: 'normal',
+						choices: alarmStates,
+					},
+				],
+			},
+			'umd': {
+				name: 'Set UMD text',
+				description: 'Set the text in the UMD bar, including variables.',
+				options: [
+					{
+						type: 'textinput',
+						label: 'UMD text',
+						tooltip: "Supports variables",
+						id: 'text',
+						default: '',
+					},
+				],
+			},
+			'preset': {
+				name: 'Recall preset',
+				description: 'Recall one of the presets stored in the device',
+				options: [
+					{
+						type: 'dropdown',
+						label: 'Preset name',
+						id: 'name',
+						default: 'USER PRESET 1',
+						choices: this.presetNames,
+					},
+				],
+			}
+		};
+		
+		this.setActionDefinitions(actions);
+	};
+	
 }
 
 runEntrypoint(KaleidoInstance, UpgradeScripts)
