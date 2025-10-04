@@ -20,11 +20,6 @@
 		"entrypoint": "../index.js"
 	},
 	"manufacturer": "Grass Valley",
-	"products": [
-		"Kaleido Solo"
-	],
-	"keywords": [
-		"Hardware",
-		"Multiviewer"
-	]
+	"products": ["Kaleido Solo"],
+	"keywords": ["Hardware", "Multiviewer"]
 }
