@@ -38,8 +38,7 @@ class KaleidoInstance extends InstanceBase {
 	parseKeyValueResponse(data) {
 		if (data !== undefined) {
 			// <kParameterInfo>softwareVersion="8.40 build 1234"</kParameterInfo>
-			// TODO(Peter): Handle whitespace at the end of the data...
-			const keyValue = /^<([^>]+)>([^=]+)="([^"]*)"<\/([^>]+)>$/
+			const keyValue = /^\s*<([^>]+)>([^=]+)="([^"]*)"<\/([^>]+)>\s*$/
 			let matches = data.match(keyValue)
 
 			if (matches !== null && matches.length == 5) {
