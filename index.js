@@ -50,6 +50,11 @@ class KaleidoInstance extends InstanceBase {
 			self.log('info', 'Received presets:' + rawList)
 			self.presetNames = rawList.map((ele) => ({ id: ele, label: ele }))
 			self.updateActions()
+		} else if (self.commandQueue[0] == '<getKCurrentLayout/>') {
+			// <kCurrentLayout>name="foo.kg2"</kCurrentLayout>
+			if (data == '<kCurrentLayout>') return
+
+			// Extract the name...
 		}
 
 		// Process end of responses
@@ -86,8 +91,21 @@ class KaleidoInstance extends InstanceBase {
 				// Open session
 				self.queueCommand(`<openID>${self.config.host}_0_4_0_0</openID>`)
 
+				// Get software version
+				self.queueCommand('<getParameterInfo>get key="softwareVersion"</getParameterInfo>')
+
+				// Get system name
+				self.queueCommand('<getParameterInfo>get key="systemName"</getParameterInfo>')
+
+				// Get room list
+				self.queueCommand('<getKRoomList/>')
+						
 				// Read layout names
 				self.queueCommand('<getKLayoutList/>')
+
+				// Per room...
+				// Read current layout
+				self.queueCommand('<getKCurrentLayout/>')
 			})
 
 			self.socket.on('error', function (err) {
