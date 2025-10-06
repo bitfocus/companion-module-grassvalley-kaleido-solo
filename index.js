@@ -1,6 +1,8 @@
 const { InstanceBase, Regex, runEntrypoint, TelnetHelper } = require('@companion-module/base')
 const UpgradeScripts = require('./upgrades')
 
+const xml2js = require('xml2js')
+
 class KaleidoInstance extends InstanceBase {
 	constructor(internal) {
 		super(internal)
@@ -16,6 +18,7 @@ class KaleidoInstance extends InstanceBase {
 		this.port = 13000
 
 		this.commandQueue = []
+		this.roomNames = []
 		this.presetNames = []
 		this.init_tcp()
 	}
@@ -80,6 +83,12 @@ class KaleidoInstance extends InstanceBase {
 			} else {
 				// TODO(Someone): Handle Alto or Quad
 			}
+		} else if (self.commandQueue[0] == '<getKRoomList/>') {
+			xml2js.parseStringPromise(data).then(function (result) {
+				self.log('debug', 'Parsed data: ' + JSON.stringify(result))
+				console.log(JSON.stringify(result))
+				self.roomNames = result.kRoomList.room.map((ele) => ({ id: ele, label: ele }))
+			})
 		} else if (
 			self.commandQueue[0] == '<getParameterInfo>get key="softwareVersion"</getParameterInfo>' ||
 			self.commandQueue[0] == '<getParameterInfo>get key="systemName"</getParameterInfo>'
