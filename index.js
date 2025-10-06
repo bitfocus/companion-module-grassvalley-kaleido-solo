@@ -36,7 +36,7 @@ class KaleidoInstance extends InstanceBase {
 	// Process data coming from the unit
 	incomingData(data) {
 		var self = this
-		self.log('debug', 'received: ' + data)
+		self.log('debug', 'Received: ' + data)
 
 		self.updateStatus('ok')
 
