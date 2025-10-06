@@ -11,6 +11,7 @@ class KaleidoInstance extends InstanceBase {
 
 		this.updateStatus('ok')
 		this.updateActions() // export actions
+		this.initVariables() // export variables
 
 		this.port = 13000
 
@@ -18,6 +19,7 @@ class KaleidoInstance extends InstanceBase {
 		this.presetNames = []
 		this.init_tcp()
 	}
+
 	// When module gets deleted
 	async destroy() {
 		if (this.socket !== undefined) {
@@ -31,6 +33,23 @@ class KaleidoInstance extends InstanceBase {
 	async configUpdated(config) {
 		this.config = config
 		this.init_tcp()
+	}
+
+	parseKeyValueResponse(data) {
+		if (data !== undefined) {
+			// <kParameterInfo>softwareVersion="8.40 build 1234"</kParameterInfo>
+			// TODO(Peter): Handle whitespace at the end of the data...
+			const keyValue = /^<([^>]+)>([^=]+)="([^"]*)"<\/([^>]+)>$/
+			let matches = data.match(keyValue)
+
+			if (matches !== null && matches.length == 5) {
+				return { key: matches[2], value: matches[3] }
+			} else {
+				return undefined
+			}
+		} else {
+			return undefined
+		}
 	}
 
 	// Process data coming from the unit
@@ -55,6 +74,33 @@ class KaleidoInstance extends InstanceBase {
 			if (data == '<kCurrentLayout>') return
 
 			// Extract the name...
+			let keyValue = self.parseKeyValueResponse(data)
+			if (keyValue !== undefined) {
+				// TODO(Peter): Deal with rooms in terms of variable names...
+				self.setVariableValues({ current_layout: keyValue.value })
+			} else {
+				// TODO(Someone): Handle Alto or Quad
+			}
+		} else if (
+			self.commandQueue[0] == '<getParameterInfo>get key="softwareVersion"</getParameterInfo>' ||
+			self.commandQueue[0] == '<getParameterInfo>get key="systemName"</getParameterInfo>'
+		) {
+			// Handle software version or system name
+			const parameterNameMapping = { softwareVersion: 'software_version', systemName: 'system_name' }
+
+			let keyValue = self.parseKeyValueResponse(data)
+
+			if (keyValue !== undefined) {
+				let variableName = parameterNameMapping[keyValue.key]
+				if (variableName !== undefined) {
+					// <kParameterInfo>softwareVersion="1.2 build 3"</kParameterInfo>
+					let variables = {}
+					variables[variableName] = keyValue.value
+					self.setVariableValues(variables)
+				}
+			} else {
+				self.log('warn', 'Failed to parse parameter from: ' + data)
+			}
 		}
 
 		// Process end of responses
@@ -99,13 +145,13 @@ class KaleidoInstance extends InstanceBase {
 
 				// Get room list
 				self.queueCommand('<getKRoomList/>')
-						
+
 				// Read layout names
 				self.queueCommand('<getKLayoutList/>')
 
 				// Per room...
 				// Read current layout
-				self.queueCommand('<getKCurrentLayout/>')
+				//self.queueCommand('<getKCurrentLayout/>')
 			})
 
 			self.socket.on('error', function (err) {
@@ -309,6 +355,24 @@ class KaleidoInstance extends InstanceBase {
 		}
 
 		self.setActionDefinitions(actions)
+	}
+
+	initVariables() {
+		var variableDefinitions = []
+
+		variableDefinitions.push({
+			name: 'Software Version',
+			variableId: 'software_version',
+		})
+
+		variableDefinitions.push({
+			name: 'System Name',
+			variableId: 'system_name',
+		})
+
+		// TODO(Peter): Add and expose other variables
+
+		this.setVariableDefinitions(variableDefinitions)
 	}
 }
 
