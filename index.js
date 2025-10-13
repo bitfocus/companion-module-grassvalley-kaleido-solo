@@ -1,4 +1,4 @@
-const { InstanceBase, Regex, runEntrypoint, TelnetHelper } = require('@companion-module/base')
+const { InstanceBase, Regex, runEntrypoint, TelnetHelper, InstanceStatus } = require('@companion-module/base')
 const UpgradeScripts = require('./upgrades')
 
 class KaleidoInstance extends InstanceBase {
@@ -9,7 +9,7 @@ class KaleidoInstance extends InstanceBase {
 	async init(config) {
 		this.config = config
 
-		this.updateStatus('ok')
+		this.updateStatus(InstanceStatus.Ok)
 		this.updateActions() // export actions
 
 		this.port = 13000
@@ -38,7 +38,7 @@ class KaleidoInstance extends InstanceBase {
 		var self = this
 		self.log('debug', 'received: ' + data)
 
-		self.updateStatus('ok')
+		self.updateStatus(InstanceStatus.Ok)
 
 		// Process layouts response
 		if (self.commandQueue[0] == '<getKLayoutList/>') {
