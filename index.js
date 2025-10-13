@@ -279,8 +279,8 @@ class KaleidoInstance extends InstanceBase {
 						type: 'dropdown',
 						label: 'Preset name',
 						id: 'name',
-						default: 'USER PRESET 1',
 						choices: self.presetNames,
+						default: self.presetNames !== undefined && self.presetNames.length > 0 ? self.presetNames[0].id : '',
 					},
 				],
 				callback: async (event) => {
