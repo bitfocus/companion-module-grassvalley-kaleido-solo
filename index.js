@@ -260,13 +260,13 @@ class KaleidoInstance extends InstanceBase {
 					{
 						type: 'textinput',
 						label: 'UMD text',
-						tooltip: 'Supports variables',
 						id: 'text',
 						default: '',
+						useVariables: true,
 					},
 				],
-				callback: async (event) => {
-					const text = await this.parseVariablesInString(event.options.text)
+				callback: async (event, context) => {
+					const text = await context.parseVariablesInString(event.options.text)
 					var command = `<setKDynamicText>set address="0" text="${text}"</setKDynamicText>`
 					self.queueCommand(command)
 				},
