@@ -1,4 +1,4 @@
-const { InstanceBase, Regex, runEntrypoint, TelnetHelper } = require('@companion-module/base')
+const { InstanceBase, Regex, runEntrypoint, TelnetHelper, InstanceStatus } = require('@companion-module/base')
 const UpgradeScripts = require('./upgrades')
 
 const xml2js = require('xml2js')
@@ -11,7 +11,7 @@ class KaleidoInstance extends InstanceBase {
 	async init(config) {
 		this.config = config
 
-		this.updateStatus('ok')
+		this.updateStatus(InstanceStatus.Ok)
 		this.updateActions() // export actions
 		this.initVariables() // export variables
 
@@ -59,7 +59,7 @@ class KaleidoInstance extends InstanceBase {
 		var self = this
 		self.log('debug', 'Received: ' + data)
 
-		self.updateStatus('ok')
+		self.updateStatus(InstanceStatus.Ok)
 
 		// Process layouts response
 		if (self.commandQueue[0] == '<getKLayoutList/>') {
@@ -332,13 +332,13 @@ class KaleidoInstance extends InstanceBase {
 					{
 						type: 'textinput',
 						label: 'UMD text',
-						tooltip: 'Supports variables',
 						id: 'text',
 						default: '',
+						useVariables: true,
 					},
 				],
-				callback: async (event) => {
-					const text = await this.parseVariablesInString(event.options.text)
+				callback: async (event, context) => {
+					const text = await context.parseVariablesInString(event.options.text)
 					var command = `<setKDynamicText>set address="0" text="${text}"</setKDynamicText>`
 					self.queueCommand(command)
 				},
@@ -351,8 +351,8 @@ class KaleidoInstance extends InstanceBase {
 						type: 'dropdown',
 						label: 'Preset name',
 						id: 'name',
-						default: 'USER PRESET 1',
 						choices: self.presetNames,
+						default: self.presetNames !== undefined && self.presetNames.length > 0 ? self.presetNames[0].id : '',
 					},
 				],
 				callback: async (event) => {
