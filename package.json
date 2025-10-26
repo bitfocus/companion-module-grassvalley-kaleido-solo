@@ -4,7 +4,9 @@
 	"main": "index.js",
 	"scripts": {
 		"format": "prettier -w .",
-		"test": "echo \"Error: no test specified\" && exit 1"
+		"package": "companion-module-build",
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"lint": "eslint"
 	},
 	"repository": {
 		"type": "git",
@@ -17,6 +19,7 @@
 	},
 	"devDependencies": {
 		"@companion-module/tools": "^2.3.0",
+		"eslint": "^9.38.0",
 		"prettier": "^3.6.2"
 	}
 }

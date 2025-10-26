@@ -1,4 +1,4 @@
-const { InstanceBase, Regex, runEntrypoint, TelnetHelper, InstanceStatus } = require('@companion-module/base')
+const { InstanceBase, runEntrypoint, TelnetHelper, InstanceStatus } = require('@companion-module/base')
 const UpgradeScripts = require('./upgrades')
 
 class KaleidoInstance extends InstanceBase {
