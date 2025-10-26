@@ -86,11 +86,11 @@ class KaleidoInstance extends InstanceBase {
 		} else if (self.commandQueue[0] == '<getKRoomList/>') {
 			xml2js.parseStringPromise(data).then(function (result) {
 				self.log('debug', 'Parsed data: ' + JSON.stringify(result))
-				console.log(JSON.stringify(result))
 				if (result.kRoomList !== undefined && result.kRoomList.room !== undefined) {
 					self.roomNames = result.kRoomList.room.map((ele) => ({ id: ele, label: ele }))
 				} else {
-					self.log('warn', "Didn't get any rooms")
+					self.log('warn', "Didn't get any rooms, clearing the current list")
+					self.roomNames = []
 				}
 			})
 		} else if (

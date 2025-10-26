@@ -1,6 +1,5 @@
 // Import the necessary modules and classes
 const runEntrypoint = require('@companion-module/base').runEntrypoint
-const { InstanceStatus } = require('@companion-module/base')
 
 // Mock Companion to get the class
 jest.mock('@companion-module/base', () => {
@@ -24,10 +23,12 @@ describe('ModuleInstance', () => {
 		instance.log = jest.fn()
 		instance.updateStatus = jest.fn()
 		instance.commandQueue = []
+		instance.roomNames = [{ id: 'FOO', label: 'FOO' }]
 		instance.setVariableValues = jest.fn()
 	})
 
 	afterEach(() => {
+		expect(instance.commandQueue).toEqual([])
 		jest.clearAllMocks()
 	})
 
@@ -115,6 +116,33 @@ describe('ModuleInstance', () => {
 			expect(instance.setVariableValues).toHaveBeenCalledWith({
 				current_layout: 'CurrentLayout.kg2',
 			})
+		})
+
+		test('should handle getting room list with no rooms', async () => {
+			instance.commandQueue = ['<getKRoomList/>']
+			await instance.incomingData('<kRoomList></kRoomList>')
+			expect(instance.roomNames).toEqual([])
+		})
+
+		test('should handle getting room list with no rooms, alternative format', async () => {
+			instance.commandQueue = ['<getKRoomList/>']
+			await instance.incomingData('<kRoomList/>')
+			expect(instance.roomNames).toEqual([])
+		})
+
+		test('should handle getting room list with a single room', async () => {
+			instance.commandQueue = ['<getKRoomList/>']
+			await instance.incomingData('<kRoomList><room>ROOM1</room></kRoomList>')
+			expect(instance.roomNames).toEqual([{ id: 'ROOM1', label: 'ROOM1' }])
+		})
+
+		test('should handle getting room list with multiple rooms', async () => {
+			instance.commandQueue = ['<getKRoomList/>']
+			await instance.incomingData('<kRoomList><room>ROOMA</room><room>ROOMB</room></kRoomList>')
+			expect(instance.roomNames).toEqual([
+				{ id: 'ROOMA', label: 'ROOMA' },
+				{ id: 'ROOMB', label: 'ROOMB' },
+			])
 		})
 
 		/*test('', () => {
