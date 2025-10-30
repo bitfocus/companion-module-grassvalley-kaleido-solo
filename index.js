@@ -40,14 +40,19 @@ class KaleidoInstance extends InstanceBase {
 
 	parseKeyValueResponse(data) {
 		if (data !== undefined) {
-			// <kParameterInfo>softwareVersion="8.40 build 1234"</kParameterInfo>
-			const keyValue = /^\s*<([^>]+)>([^=]+)="([^"]*)"<\/([^>]+)>\s*$/
-			let matches = data.match(keyValue)
-
-			if (matches !== null && matches.length == 5) {
-				return { key: matches[2], value: matches[3] }
-			} else {
+			if (data.trim() == '<nack/>') {
+				this.log('warn', 'Got NAck for command ' + this.commandQueue[0])
 				return undefined
+			} else {
+				// <kParameterInfo>softwareVersion="8.40 build 1234"</kParameterInfo>
+				const keyValue = /^\s*<([^>]+)>([^=]+)="([^"]*)"<\/([^>]+)>\s*$/
+				let matches = data.match(keyValue)
+
+				if (matches !== null && matches.length == 5) {
+					return { key: matches[2], value: matches[3] }
+				} else {
+					return undefined
+				}
 			}
 		} else {
 			return undefined
