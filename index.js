@@ -63,14 +63,21 @@ class KaleidoInstance extends InstanceBase {
 
 		// Process layouts response
 		if (self.commandQueue[0] == '<getKLayoutList/>') {
-			if (data == '<kLayoutList>') return
+			xml2js.parseStringPromise(data).then(function (result) {
+				self.log('debug', 'Parsed data: ' + JSON.stringify(result))
+				if (result.kLayoutList !== undefined) {
+					// Deliberately add a space to the end so we can simplify the split
+					var rawList = (result.kLayoutList + ' ').split('.kg2 ')
+					rawList = rawList.filter((ele) => ele.trim() != '')
 
-			var rawList = data.trim().split('"')
-			rawList = rawList.filter((ele) => ele.trim() != '' && ele.trim() != '</kLayoutList>')
-
-			self.log('info', 'Received presets:' + rawList)
-			self.presetNames = rawList.map((ele) => ({ id: ele, label: ele }))
-			self.updateActions()
+					self.log('info', 'Received presets:' + rawList)
+					self.presetNames = rawList.map((ele) => ({ id: ele + '.kg2', label: ele }))
+					self.updateActions()
+				} else {
+					self.log('warn', "Didn't get any presets, clearing the current list")
+					self.presetNames = []
+				}
+			})
 		} else if (self.commandQueue[0] == '<getKCurrentLayout/>') {
 			// <kCurrentLayout>name="foo.kg2"</kCurrentLayout>
 			if (data == '<kCurrentLayout>') return

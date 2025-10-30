@@ -24,7 +24,9 @@ describe('ModuleInstance', () => {
 		instance.updateStatus = jest.fn()
 		instance.commandQueue = []
 		instance.roomNames = [{ id: 'FOO', label: 'FOO' }]
+		instance.presetNames = [{ id: 'BAR', label: 'BAR' }]
 		instance.setVariableValues = jest.fn()
+		instance.setActionDefinitions = jest.fn()
 	})
 
 	afterEach(() => {
@@ -116,6 +118,28 @@ describe('ModuleInstance', () => {
 			expect(instance.setVariableValues).toHaveBeenCalledWith({
 				current_layout: 'CurrentLayout.kg2',
 			})
+		})
+
+		test('should handle getting layout list for K2 or Kaleido Software with no presets', async () => {
+			instance.commandQueue = ['<getKLayoutList/>']
+			await instance.incomingData('<kLayoutList></kLayoutList>')
+			expect(instance.presetNames).toEqual([])
+		})
+
+		test('should handle getting layout list for K2 or Kaleido Software with no presets, alternative format', async () => {
+			instance.commandQueue = ['<getKLayoutList/>']
+			await instance.incomingData('<kLayoutList/>')
+			expect(instance.presetNames).toEqual([])
+		})
+
+		test('should handle getting layout list for K2 or Kaleido Software without room', async () => {
+			instance.commandQueue = ['<getKLayoutList/>']
+			await instance.incomingData('<kLayoutList>Layout1.kg2 Layout2.kg2 AnAvailableLayout.kg2</kLayoutList>')
+			expect(instance.presetNames).toEqual([
+				{ id: 'Layout1.kg2', label: 'Layout1' },
+				{ id: 'Layout2.kg2', label: 'Layout2' },
+				{ id: 'AnAvailableLayout.kg2', label: 'AnAvailableLayout' },
+			])
 		})
 
 		test('should handle getting room list with no rooms', async () => {
