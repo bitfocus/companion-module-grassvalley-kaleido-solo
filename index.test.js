@@ -22,6 +22,7 @@ describe('ModuleInstance', () => {
 		instance = new module('')
 		instance.log = jest.fn()
 		instance.updateStatus = jest.fn()
+		instance.processQueue = jest.fn()
 		instance.workingBuffer = ''
 		instance.commandQueue = []
 		instance.roomNames = [{ id: 'FOO', label: 'FOO' }]
@@ -90,37 +91,53 @@ describe('ModuleInstance', () => {
 	})
 
 	describe('incomingData', () => {
-		test('should handle software version', () => {
+		afterEach(() => {
+			// Queue should have moved on after each test
+			expect(instance.processQueue).toHaveBeenCalled()
+		})
+
+		test('should handle software version', async () => {
 			instance.commandQueue = ['<getParameterInfo>get key="softwareVersion"</getParameterInfo>']
-			expect(instance.incomingData('<kParameterInfo>softwareVersion="8.40 build 1234"</kParameterInfo>')).toEqual()
+			await instance.incomingData('<kParameterInfo>softwareVersion="8.40 build 1234"</kParameterInfo>')
 			expect(instance.setVariableValues).toHaveBeenCalledWith({
 				software_version: '8.40 build 1234',
 			})
 		})
 
-		test('should handle system name', () => {
+		test('should handle system name', async () => {
 			instance.commandQueue = ['<getParameterInfo>get key="systemName"</getParameterInfo>']
-			expect(instance.incomingData('<kParameterInfo>systemName="Cougar-X"</kParameterInfo>')).toEqual()
+			await instance.incomingData('<kParameterInfo>systemName="Cougar-X"</kParameterInfo>')
 			expect(instance.setVariableValues).toHaveBeenCalledWith({
 				system_name: 'Cougar-X',
 			})
 		})
 
-		/*test('should handle current layout for Alto or Quad', () => {
+		/*test('should handle current layout for Alto or Quad', async () => {
 			instance.commandQueue = ['<getKCurrentLayout/>']
-			expect(instance.incomingData('<kCurrentLayout>Currentlayout.xml</kCurrentLayout>')).toEqual()
+			await instance.incomingData('<kCurrentLayout>Currentlayout.xml</kCurrentLayout>')
 			expect(instance.setVariableValues).toHaveBeenCalledWith({
 				current_layout: 'Currentlayout.xml',
 			})
 		})*/
 
-		test('should handle current layout for K2 or Kaleido Software', () => {
+		test('should handle current layout for K2 or Kaleido Software', async () => {
 			instance.commandQueue = ['<getKCurrentLayout/>']
-			expect(instance.incomingData('<kCurrentLayout>name="CurrentLayout.kg2"</kCurrentLayout>')).toEqual()
+			await instance.incomingData('<kCurrentLayout>name="CurrentLayout.kg2"</kCurrentLayout>')
 			expect(instance.setVariableValues).toHaveBeenCalledWith({
 				current_layout: 'CurrentLayout.kg2',
 			})
 		})
+
+		/*test('should handle getting layout list for Solo', async () => {
+			instance.commandQueue = ['<getKLayoutList/>']
+			// This is reverse engineered guesswork based on what the original code did...
+			await instance.incomingData('<kLayoutList>"Layout1.xml" "Layout2.xml" "AnAvailableLayout.xml"</kLayoutList>')
+			expect(instance.presetNames).toEqual([
+				{ id: 'Layout1.xml', label: 'Layout1.xml' },
+				{ id: 'Layout2.xml', label: 'Layout2.xml' },
+				{ id: 'AnAvailableLayout.xml', label: 'AnAvailableLayout.xml' },
+			])
+		})*/
 
 		test('should handle getting layout list for K2 or Kaleido Software with no presets', async () => {
 			instance.commandQueue = ['<getKLayoutList/>']
@@ -144,9 +161,23 @@ describe('ModuleInstance', () => {
 			])
 		})
 
-		test('should handle packetised layout list for K2 or Kaleido Software', async () => {
+		test('should handle getting layout list for K2 or Kaleido Software with rooms', async () => {
+			instance.commandQueue = ['<getKLayoutList/>']
+			await instance.incomingData(
+				'<kLayoutList>ROOM1/Layout1.kg2 ROOM1/Layout2.kg2 ROOM2/AnAvailableLayout.kg2</kLayoutList>',
+			)
+			expect(instance.presetNames).toEqual([
+				{ id: 'ROOM1/Layout1.kg2', label: 'ROOM1/Layout1' },
+				{ id: 'ROOM1/Layout2.kg2', label: 'ROOM1/Layout2' },
+				{ id: 'ROOM2/AnAvailableLayout.kg2', label: 'ROOM2/AnAvailableLayout' },
+			])
+		})
+
+		test('should handle packetised layout list for K2 or Kaleido Software without rooms', async () => {
 			instance.commandQueue = ['<getKLayoutList/>']
 			await instance.incomingData('<kLayoutList>Layout1.kg2 Layout2.kg2')
+			expect(instance.processQueue).not.toHaveBeenCalled()
+			expect(instance.workingBuffer).not.toEqual('')
 			// Should be the original, untouched, data as we've not successfully parsed info yet
 			expect(instance.presetNames).toEqual([{ id: 'BAR.kg2', label: 'BAR' }])
 			await instance.incomingData(' AnAvailableLayout.kg2</kLayoutList>')
@@ -154,6 +185,21 @@ describe('ModuleInstance', () => {
 				{ id: 'Layout1.kg2', label: 'Layout1' },
 				{ id: 'Layout2.kg2', label: 'Layout2' },
 				{ id: 'AnAvailableLayout.kg2', label: 'AnAvailableLayout' },
+			])
+		})
+
+		test('should handle packetised layout list for K2 or Kaleido Software with rooms', async () => {
+			instance.commandQueue = ['<getKLayoutList/>']
+			await instance.incomingData('<kLayoutList>ROOM1/Layout1.kg2 ROOM1/Layout2.kg2')
+			expect(instance.processQueue).not.toHaveBeenCalled()
+			expect(instance.workingBuffer).not.toEqual('')
+			// Should be the original, untouched, data as we've not successfully parsed info yet
+			expect(instance.presetNames).toEqual([{ id: 'BAR.kg2', label: 'BAR' }])
+			await instance.incomingData(' ROOM2/AnAvailableLayout.kg2</kLayoutList>')
+			expect(instance.presetNames).toEqual([
+				{ id: 'ROOM1/Layout1.kg2', label: 'ROOM1/Layout1' },
+				{ id: 'ROOM1/Layout2.kg2', label: 'ROOM1/Layout2' },
+				{ id: 'ROOM2/AnAvailableLayout.kg2', label: 'ROOM2/AnAvailableLayout' },
 			])
 		})
 
@@ -184,9 +230,9 @@ describe('ModuleInstance', () => {
 			])
 		})
 
-		/*test('', () => {
+		/*test('', async () => {
 			instance.commandQueue = ['']
-			expect(instance.incomingData('')).toEqual()
+			await instance.incomingData('')
 			expect(instance.setVariableValues).toHaveBeenCalledWith({
 			})
 		})*/

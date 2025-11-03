@@ -65,12 +65,12 @@ class KaleidoInstance extends InstanceBase {
 	}
 
 	// Process data coming from the unit
-	incomingData(data) {
+	async incomingData(data) {
 		var self = this
 		self.log('debug', 'Received: ' + data)
 		if (self.workingBuffer != '') {
-			self.log('debug', 'Current total buffer is: ' + data)
 			self.workingBuffer += data
+			self.log('debug', 'Current total buffer is: ' + self.workingBuffer)
 		} else {
 			self.workingBuffer = data
 		}
@@ -79,7 +79,7 @@ class KaleidoInstance extends InstanceBase {
 
 		// Process layouts response
 		if (self.commandQueue[0] == '<getKLayoutList/>') {
-			xml2js
+			await xml2js
 				.parseStringPromise(self.workingBuffer)
 				.then(function (result) {
 					self.log('debug', 'Parsed data: ' + JSON.stringify(result))
@@ -104,7 +104,7 @@ class KaleidoInstance extends InstanceBase {
 				})
 		} else if (self.commandQueue[0] == '<getKCurrentLayout/>') {
 			// <kCurrentLayout>name="foo.kg2"</kCurrentLayout>
-			if (data == '<kCurrentLayout>') return
+			if (self.workingBuffer == '<kCurrentLayout>') return
 
 			// Extract the name...
 			let keyValue = self.parseKeyValueResponse(self.workingBuffer)
@@ -115,8 +115,8 @@ class KaleidoInstance extends InstanceBase {
 				// TODO(Someone): Handle Alto or Quad
 			}
 		} else if (self.commandQueue[0] == '<getKRoomList/>') {
-			xml2js
-				.parseStringPromise(data)
+			await xml2js
+				.parseStringPromise(self.workingBuffer)
 				.then(function (result) {
 					self.log('debug', 'Parsed data: ' + JSON.stringify(result))
 					// Successful parse, clear buffer so we don't try and parse it again
@@ -139,7 +139,7 @@ class KaleidoInstance extends InstanceBase {
 			// Handle software version or system name
 			const parameterNameMapping = { softwareVersion: 'software_version', systemName: 'system_name' }
 
-			let keyValue = self.parseKeyValueResponse(data)
+			let keyValue = self.parseKeyValueResponse(self.workingBuffer)
 
 			if (keyValue !== undefined) {
 				let variableName = parameterNameMapping[keyValue.key]
@@ -150,12 +150,29 @@ class KaleidoInstance extends InstanceBase {
 					self.setVariableValues(variables)
 				}
 			} else {
-				self.log('warn', 'Failed to parse parameter from: ' + data)
+				self.log('warn', 'Failed to parse parameter from: ' + self.workingBuffer)
 			}
+		} else if (
+			self.commandQueue[0] == `<openID>${self.config.host}_0_4_0_0</openID>` ||
+			self.commandQueue[0] == '<closeID/>'
+		) {
+			if (self.workingBuffer.trim() == '<nack/>') {
+				self.log('warn', 'Got NAck for command ' + this.commandQueue[0])
+				// Successful parse, clear buffer so we don't try and parse it again
+				self.workingBuffer = ''
+			} else if (self.workingBuffer.trim() == '<ack/>') {
+				self.log('info', 'Got Ack for command ' + this.commandQueue[0])
+				// Successful parse, clear buffer so we don't try and parse it again
+				self.workingBuffer = ''
+			} else {
+				self.log('warn', 'Unknown response for command ' + this.commandQueue[0])
+			}
+		} else {
+			self.log('warn', 'Unhandled command in queue ' + this.commandQueue[0])
 		}
 
-		// Process end of responses
-		if (data.includes('/')) {
+		// Process end of responses, only move on if we've dealt with everything...
+		if (self.workingBuffer == '') {
 			// End of response
 			self.commandQueue.shift()
 			self.processQueue()
