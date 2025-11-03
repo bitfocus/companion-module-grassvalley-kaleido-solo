@@ -1,19 +1,22 @@
 const { InstanceBase, runEntrypoint, TelnetHelper, InstanceStatus } = require('@companion-module/base')
 const UpgradeScripts = require('./upgrades')
 
+const presets = require('./src/presets')
+
 const xml2js = require('xml2js')
 
 class KaleidoInstance extends InstanceBase {
 	constructor(internal) {
 		super(internal)
+
+		// Assign the methods from the listed files to this class
+		Object.assign(this, {
+			...presets,
+		})
 	}
 
 	async init(config) {
 		this.config = config
-
-		this.updateStatus(InstanceStatus.Ok)
-		this.updateActions() // export actions
-		this.initVariables() // export variables
 
 		this.port = 13000
 
@@ -21,6 +24,10 @@ class KaleidoInstance extends InstanceBase {
 		this.commandQueue = []
 		this.roomNames = []
 		this.presetNames = []
+
+		this.updateActions() // export actions
+		this.initVariables() // export variables
+
 		this.init_tcp()
 	}
 
@@ -75,8 +82,6 @@ class KaleidoInstance extends InstanceBase {
 			self.workingBuffer = data
 		}
 
-		self.updateStatus(InstanceStatus.Ok)
-
 		// Process layouts response
 		if (self.commandQueue[0] == '<getKLayoutList/>') {
 			await xml2js
@@ -97,6 +102,7 @@ class KaleidoInstance extends InstanceBase {
 						self.log('warn', "Didn't get any presets, clearing the current list")
 						self.presetNames = []
 					}
+					self.initPresets()
 				})
 				.catch(function (err) {
 					// Failed to parse
@@ -157,10 +163,12 @@ class KaleidoInstance extends InstanceBase {
 			self.commandQueue[0] == '<closeID/>'
 		) {
 			if (self.workingBuffer.trim() == '<nack/>') {
+				self.updateStatus(InstanceStatus.ConnectionFailure, 'Got NAck for command ' + this.commandQueue[0])
 				self.log('warn', 'Got NAck for command ' + this.commandQueue[0])
 				// Successful parse, clear buffer so we don't try and parse it again
 				self.workingBuffer = ''
 			} else if (self.workingBuffer.trim() == '<ack/>') {
+				self.updateStatus(InstanceStatus.Ok)
 				self.log('info', 'Got Ack for command ' + this.commandQueue[0])
 				// Successful parse, clear buffer so we don't try and parse it again
 				self.workingBuffer = ''
@@ -182,12 +190,15 @@ class KaleidoInstance extends InstanceBase {
 	// Set up connection
 	init_tcp() {
 		var self = this
+
 		if (self.socket !== undefined) {
 			self.socket.destroy()
 			delete self.socket
 		}
 
 		if (self.config.host) {
+			self.updateStatus(InstanceStatus.Connecting)
+
 			self.socket = new TelnetHelper(this.config.host, this.port)
 
 			self.socket.on('status_change', function (status, message) {
@@ -234,6 +245,8 @@ class KaleidoInstance extends InstanceBase {
 				var indata = buffer.toString('utf8')
 				self.incomingData(indata)
 			})
+		} else {
+			self.updateStatus(InstanceStatus.BadConfig, `IP address is missing`)
 		}
 	}
 
