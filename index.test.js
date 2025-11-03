@@ -22,14 +22,16 @@ describe('ModuleInstance', () => {
 		instance = new module('')
 		instance.log = jest.fn()
 		instance.updateStatus = jest.fn()
+		instance.workingBuffer = ''
 		instance.commandQueue = []
 		instance.roomNames = [{ id: 'FOO', label: 'FOO' }]
-		instance.presetNames = [{ id: 'BAR', label: 'BAR' }]
+		instance.presetNames = [{ id: 'BAR.kg2', label: 'BAR' }]
 		instance.setVariableValues = jest.fn()
 		instance.setActionDefinitions = jest.fn()
 	})
 
 	afterEach(() => {
+		expect(instance.workingBuffer).toEqual('')
 		expect(instance.commandQueue).toEqual([])
 		jest.clearAllMocks()
 	})
@@ -135,6 +137,19 @@ describe('ModuleInstance', () => {
 		test('should handle getting layout list for K2 or Kaleido Software without room', async () => {
 			instance.commandQueue = ['<getKLayoutList/>']
 			await instance.incomingData('<kLayoutList>Layout1.kg2 Layout2.kg2 AnAvailableLayout.kg2</kLayoutList>')
+			expect(instance.presetNames).toEqual([
+				{ id: 'Layout1.kg2', label: 'Layout1' },
+				{ id: 'Layout2.kg2', label: 'Layout2' },
+				{ id: 'AnAvailableLayout.kg2', label: 'AnAvailableLayout' },
+			])
+		})
+
+		test('should handle packetised layout list for K2 or Kaleido Software', async () => {
+			instance.commandQueue = ['<getKLayoutList/>']
+			await instance.incomingData('<kLayoutList>Layout1.kg2 Layout2.kg2')
+			// Should be the original, untouched, data as we've not successfully parsed info yet
+			expect(instance.presetNames).toEqual([{ id: 'BAR.kg2', label: 'BAR' }])
+			await instance.incomingData(' AnAvailableLayout.kg2</kLayoutList>')
 			expect(instance.presetNames).toEqual([
 				{ id: 'Layout1.kg2', label: 'Layout1' },
 				{ id: 'Layout2.kg2', label: 'Layout2' },

@@ -17,6 +17,7 @@ class KaleidoInstance extends InstanceBase {
 
 		this.port = 13000
 
+		this.workingBuffer = ''
 		this.commandQueue = []
 		this.roomNames = []
 		this.presetNames = []
@@ -42,6 +43,8 @@ class KaleidoInstance extends InstanceBase {
 		if (data !== undefined) {
 			if (data.trim() == '<nack/>') {
 				this.log('warn', 'Got NAck for command ' + this.commandQueue[0])
+				// Successful parse, clear buffer so we don't try and parse it again
+				this.workingBuffer = ''
 				return undefined
 			} else {
 				// <kParameterInfo>softwareVersion="8.40 build 1234"</kParameterInfo>
@@ -49,6 +52,8 @@ class KaleidoInstance extends InstanceBase {
 				let matches = data.match(keyValue)
 
 				if (matches !== null && matches.length == 5) {
+					// Successful parse, clear buffer so we don't try and parse it again
+					this.workingBuffer = ''
 					return { key: matches[2], value: matches[3] }
 				} else {
 					return undefined
@@ -63,32 +68,46 @@ class KaleidoInstance extends InstanceBase {
 	incomingData(data) {
 		var self = this
 		self.log('debug', 'Received: ' + data)
+		if (self.workingBuffer != '') {
+			self.log('debug', 'Current total buffer is: ' + data)
+			self.workingBuffer += data
+		} else {
+			self.workingBuffer = data
+		}
 
 		self.updateStatus(InstanceStatus.Ok)
 
 		// Process layouts response
 		if (self.commandQueue[0] == '<getKLayoutList/>') {
-			xml2js.parseStringPromise(data).then(function (result) {
-				self.log('debug', 'Parsed data: ' + JSON.stringify(result))
-				if (result.kLayoutList !== undefined) {
-					// Deliberately add a space to the end so we can simplify the split
-					var rawList = (result.kLayoutList + ' ').split('.kg2 ')
-					rawList = rawList.filter((ele) => ele.trim() != '')
+			xml2js
+				.parseStringPromise(self.workingBuffer)
+				.then(function (result) {
+					self.log('debug', 'Parsed data: ' + JSON.stringify(result))
+					// Successful parse, clear buffer so we don't try and parse it again
+					self.workingBuffer = ''
+					if (result.kLayoutList !== undefined) {
+						// Deliberately add a space to the end so we can simplify the split
+						var rawList = (result.kLayoutList + ' ').split('.kg2 ')
+						rawList = rawList.filter((ele) => ele.trim() != '')
 
-					self.log('info', 'Received presets:' + rawList)
-					self.presetNames = rawList.map((ele) => ({ id: ele + '.kg2', label: ele }))
-					self.updateActions()
-				} else {
-					self.log('warn', "Didn't get any presets, clearing the current list")
-					self.presetNames = []
-				}
-			})
+						self.log('info', 'Received presets:' + rawList)
+						self.presetNames = rawList.map((ele) => ({ id: ele + '.kg2', label: ele }))
+						self.updateActions()
+					} else {
+						self.log('warn', "Didn't get any presets, clearing the current list")
+						self.presetNames = []
+					}
+				})
+				.catch(function (err) {
+					// Failed to parse
+					self.log('warn', 'Failed to parse data, either invalid XML or partial packet data: ' + self.workingBuffer)
+				})
 		} else if (self.commandQueue[0] == '<getKCurrentLayout/>') {
 			// <kCurrentLayout>name="foo.kg2"</kCurrentLayout>
 			if (data == '<kCurrentLayout>') return
 
 			// Extract the name...
-			let keyValue = self.parseKeyValueResponse(data)
+			let keyValue = self.parseKeyValueResponse(self.workingBuffer)
 			if (keyValue !== undefined) {
 				// TODO(Peter): Deal with rooms in terms of variable names...
 				self.setVariableValues({ current_layout: keyValue.value })
@@ -96,15 +115,23 @@ class KaleidoInstance extends InstanceBase {
 				// TODO(Someone): Handle Alto or Quad
 			}
 		} else if (self.commandQueue[0] == '<getKRoomList/>') {
-			xml2js.parseStringPromise(data).then(function (result) {
-				self.log('debug', 'Parsed data: ' + JSON.stringify(result))
-				if (result.kRoomList !== undefined && result.kRoomList.room !== undefined) {
-					self.roomNames = result.kRoomList.room.map((ele) => ({ id: ele, label: ele }))
-				} else {
-					self.log('warn', "Didn't get any rooms, clearing the current list")
-					self.roomNames = []
-				}
-			})
+			xml2js
+				.parseStringPromise(data)
+				.then(function (result) {
+					self.log('debug', 'Parsed data: ' + JSON.stringify(result))
+					// Successful parse, clear buffer so we don't try and parse it again
+					self.workingBuffer = ''
+					if (result.kRoomList !== undefined && result.kRoomList.room !== undefined) {
+						self.roomNames = result.kRoomList.room.map((ele) => ({ id: ele, label: ele }))
+					} else {
+						self.log('warn', "Didn't get any rooms, clearing the current list")
+						self.roomNames = []
+					}
+				})
+				.catch(function (err) {
+					// Failed to parse
+					self.log('warn', 'Failed to parse data, either invalid XML or partial packet data: ' + self.workingBuffer)
+				})
 		} else if (
 			self.commandQueue[0] == '<getParameterInfo>get key="softwareVersion"</getParameterInfo>' ||
 			self.commandQueue[0] == '<getParameterInfo>get key="systemName"</getParameterInfo>'
@@ -157,6 +184,9 @@ class KaleidoInstance extends InstanceBase {
 
 			self.socket.on('connect', function () {
 				self.log('info', 'Connected')
+
+				// Reset the working buffer each time we connect
+				self.workingBuffer = ''
 
 				// Open session
 				self.queueCommand(`<openID>${self.config.host}_0_4_0_0</openID>`)
