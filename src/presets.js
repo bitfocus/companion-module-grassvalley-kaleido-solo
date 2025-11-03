@@ -22,7 +22,7 @@ module.exports = {
 		for (const preset of self.presetNames.sort(function (a, b) {
 			return a.label.localeCompare(b.label)
 		})) {
-			self.log('debug', 'Found detail for preset ' + JSON.stringify(preset))
+			//self.log('debug', 'Found detail for preset ' + JSON.stringify(preset))
 			/*presets[`layout_${preset.id}`] = {
 				category: `Layouts`,
 				name: `Layout ${preset.name}`,
