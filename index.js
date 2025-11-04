@@ -1,23 +1,37 @@
-const { InstanceBase, Regex, runEntrypoint, TelnetHelper } = require('@companion-module/base')
+const { InstanceBase, runEntrypoint, TelnetHelper, InstanceStatus } = require('@companion-module/base')
 const UpgradeScripts = require('./upgrades')
+
+const presets = require('./src/presets')
+
+const xml2js = require('xml2js')
 
 class KaleidoInstance extends InstanceBase {
 	constructor(internal) {
 		super(internal)
+
+		// Assign the methods from the listed files to this class
+		Object.assign(this, {
+			...presets,
+		})
 	}
 
 	async init(config) {
 		this.config = config
 
-		this.updateStatus('ok')
-		this.updateActions() // export actions
-
 		this.port = 13000
 
+		this.workingBuffer = ''
 		this.commandQueue = []
+		this.context = ''
+		this.roomNames = []
 		this.presetNames = []
+
+		this.updateActions() // export actions
+		this.initVariables() // export variables
+
 		this.init_tcp()
 	}
+
 	// When module gets deleted
 	async destroy() {
 		if (this.socket !== undefined) {
@@ -33,27 +47,189 @@ class KaleidoInstance extends InstanceBase {
 		this.init_tcp()
 	}
 
-	// Process data coming from the unit
-	incomingData(data) {
-		var self = this
-		self.log('debug', 'received: ' + data)
+	parseKeyValueResponse(data) {
+		if (data !== undefined) {
+			if (data.trim() == '<nack/>') {
+				this.log('warn', 'Got NAck for command ' + this.commandQueue[0])
+				// Successful parse, clear buffer so we don't try and parse it again
+				this.workingBuffer = ''
+				return undefined
+			} else {
+				// <kParameterInfo>softwareVersion="8.40 build 1234"</kParameterInfo>
+				const keyValue = /^\s*<([^>]+)>([^=]+)="([^"]*)"<\/([^>]+)>\s*$/
+				let matches = data.match(keyValue)
 
-		self.updateStatus('ok')
+				if (matches !== null && matches.length == 5) {
+					// Successful parse, clear buffer so we don't try and parse it again
+					this.workingBuffer = ''
+					return { key: matches[2], value: matches[3] }
+				} else {
+					return undefined
+				}
+			}
+		} else {
+			return undefined
+		}
+	}
+
+	// Process data coming from the unit
+	async incomingData(data) {
+		var self = this
+		self.log('debug', 'Received: ' + data)
+		if (self.workingBuffer != '') {
+			self.workingBuffer += data
+			self.log('debug', 'Current total buffer is: ' + self.workingBuffer)
+		} else {
+			self.workingBuffer = data
+		}
 
 		// Process layouts response
 		if (self.commandQueue[0] == '<getKLayoutList/>') {
-			if (data == '<kLayoutList>') return
+			await xml2js
+				.parseStringPromise(self.workingBuffer)
+				.then(function (result) {
+					self.log('debug', 'Parsed data: ' + JSON.stringify(result))
+					// Successful parse, clear buffer so we don't try and parse it again
+					self.workingBuffer = ''
+					if (result.kLayoutList !== undefined) {
+						// Deliberately add a space to the end so we can simplify the split
+						var rawList = (result.kLayoutList + ' ').split('.kg2 ')
+						rawList = rawList.filter((ele) => ele.trim() != '')
 
-			var rawList = data.trim().split('"')
-			rawList = rawList.filter((ele) => ele.trim() != '' && ele.trim() != '</kLayoutList>')
+						self.log('info', 'Received presets:' + rawList)
+						self.presetNames = rawList.map((ele) => ({ id: ele + '.kg2', label: ele }))
+						self.updateActions()
+					} else {
+						self.log('warn', "Didn't get any presets, clearing the current list")
+						self.presetNames = []
+					}
+					self.initPresets()
+				})
+				.catch(function (err) {
+					// Failed to parse
+					self.log('warn', 'Failed to parse data, either invalid XML or partial packet data: ' + self.workingBuffer)
+				})
+		} else if (self.commandQueue[0] == '<getKCurrentLayout/>') {
+			// <kCurrentLayout>name="foo.kg2"</kCurrentLayout>
+			if (self.workingBuffer == '<kCurrentLayout>') return
 
-			self.log('info', 'Received presets:' + rawList)
-			self.presetNames = rawList.map((ele) => ({ id: ele, label: ele }))
-			self.updateActions()
+			// Extract the name...
+			let keyValue = self.parseKeyValueResponse(self.workingBuffer)
+			if (keyValue !== undefined) {
+				// TODO(Peter): Deal with rooms in terms of variable names...
+				self.setVariableValues({ current_layout: keyValue.value })
+			} else {
+				// TODO(Someone): Handle Alto or Quad
+			}
+		} else if (self.commandQueue[0] == '<getKRoomList/>') {
+			await xml2js
+				.parseStringPromise(self.workingBuffer)
+				.then(function (result) {
+					self.log('debug', 'Parsed data: ' + JSON.stringify(result))
+					// Successful parse, clear buffer so we don't try and parse it again
+					self.workingBuffer = ''
+					if (result.kRoomList !== undefined && result.kRoomList.room !== undefined) {
+						self.roomNames = result.kRoomList.room.map((ele) => ({ id: ele, label: ele }))
+						for (const room of result.kRoomList.room) {
+							self.queueCommand(`<openID>${room}</openID>`)
+							self.queueCommand('<getKCurrentLayout/>')
+							self.queueCommand('<closeID/>')
+						}
+					} else {
+						self.log('warn', "Didn't get any rooms, clearing the current list")
+						self.roomNames = []
+					}
+				})
+				.catch(function (err) {
+					// Failed to parse
+					self.log('warn', 'Failed to parse data, either invalid XML or partial packet data: ' + self.workingBuffer)
+				})
+		} else if (
+			self.commandQueue[0] == '<getParameterInfo>get key="softwareVersion"</getParameterInfo>' ||
+			self.commandQueue[0] == '<getParameterInfo>get key="systemName"</getParameterInfo>'
+		) {
+			// Handle software version or system name
+			const parameterNameMapping = { softwareVersion: 'software_version', systemName: 'system_name' }
+
+			let keyValue = self.parseKeyValueResponse(self.workingBuffer)
+
+			if (keyValue !== undefined) {
+				let variableName = parameterNameMapping[keyValue.key]
+				if (variableName !== undefined) {
+					// <kParameterInfo>softwareVersion="1.2 build 3"</kParameterInfo>
+					let variables = {}
+					variables[variableName] = keyValue.value
+					self.setVariableValues(variables)
+				}
+			} else {
+				self.log('warn', 'Failed to parse parameter from: ' + self.workingBuffer)
+			}
+		} else if (/^\s*<openID>[^<]+<\/openID>\s*$/.test(self.commandQueue[0])) {
+			await xml2js
+				.parseStringPromise(self.commandQueue[0])
+				.then(function (result) {
+					self.log('debug', 'Parsed data: ' + JSON.stringify(result))
+					if (result.openID !== undefined) {
+						if (result.openID == `${self.config.host}_0_4_0_0`) {
+							self.context = ''
+						} else {
+							self.log('debug', 'Got likely room context: ' + result.openID)
+							self.context = result.openID
+						}
+					} else {
+						self.log('warn', "Didn't get any context")
+					}
+					if (self.workingBuffer.trim() == '<nack/>') {
+						self.updateStatus(InstanceStatus.ConnectionFailure, 'Got NAck for command ' + self.commandQueue[0])
+						self.log('warn', 'Got NAck for command ' + self.commandQueue[0])
+						// Successful parse, clear buffer so we don't try and parse it again
+						self.workingBuffer = ''
+					} else if (self.workingBuffer.trim() == '<ack/>') {
+						self.updateStatus(InstanceStatus.Ok)
+						self.log('info', 'Got Ack for command ' + self.commandQueue[0])
+						// Successful parse, clear buffer so we don't try and parse it again
+						self.workingBuffer = ''
+					} else {
+						self.log('warn', 'Unknown response for command ' + self.commandQueue[0])
+					}
+				})
+				.catch(function (err) {
+					// Failed to parse
+					self.log('warn', 'Failed to parse data, invalid XML: ' + self.commandQueue[0])
+				})
+		} else if (self.commandQueue[0] == '<closeID/>') {
+			if (self.workingBuffer.trim() == '<nack/>') {
+				self.updateStatus(
+					InstanceStatus.UnknownError,
+					'Got NAck for command ' + self.commandQueue[0] + ' in context ' + self.context,
+				)
+				self.log('warn', 'Got NAck for command ' + self.commandQueue[0] + ' in context ' + self.context)
+				// Successful parse, clear buffer so we don't try and parse it again
+				self.workingBuffer = ''
+			} else if (self.workingBuffer.trim() == '<ack/>') {
+				if (self.context == '') {
+					// Implies connection closed
+					self.updateStatus(InstanceStatus.Disconnected)
+				} else {
+					// Switch to root level instead
+					self.context = ''
+				}
+				self.log('info', 'Got Ack for command ' + self.commandQueue[0] + ' in context ' + self.context)
+				// Successful parse, clear buffer so we don't try and parse it again
+				self.workingBuffer = ''
+			} else {
+				self.updateStatus(
+					InstanceStatus.UnknownError,
+					'Unknown response for command ' + self.commandQueue[0] + ' in context ' + self.context,
+				)
+				self.log('warn', 'Unknown response for command ' + self.commandQueue[0] + ' in context ' + self.context)
+			}
+		} else {
+			self.log('warn', 'Unhandled command in queue ' + self.commandQueue[0])
 		}
 
-		// Process end of responses
-		if (data.includes('/')) {
+		// Process end of responses, only move on if we've dealt with everything...
+		if (self.workingBuffer == '') {
 			// End of response
 			self.commandQueue.shift()
 			self.processQueue()
@@ -63,12 +239,15 @@ class KaleidoInstance extends InstanceBase {
 	// Set up connection
 	init_tcp() {
 		var self = this
+
 		if (self.socket !== undefined) {
 			self.socket.destroy()
 			delete self.socket
 		}
 
 		if (self.config.host) {
+			self.updateStatus(InstanceStatus.Connecting)
+
 			self.socket = new TelnetHelper(this.config.host, this.port)
 
 			self.socket.on('status_change', function (status, message) {
@@ -83,11 +262,27 @@ class KaleidoInstance extends InstanceBase {
 			self.socket.on('connect', function () {
 				self.log('info', 'Connected')
 
+				// Reset the working buffer each time we connect
+				self.workingBuffer = ''
+
 				// Open session
 				self.queueCommand(`<openID>${self.config.host}_0_4_0_0</openID>`)
 
+				// Get software version
+				self.queueCommand('<getParameterInfo>get key="softwareVersion"</getParameterInfo>')
+
+				// Get system name
+				self.queueCommand('<getParameterInfo>get key="systemName"</getParameterInfo>')
+
+				// Get room list
+				self.queueCommand('<getKRoomList/>')
+
 				// Read layout names
 				self.queueCommand('<getKLayoutList/>')
+
+				// Per room...
+				// Read current layout
+				//self.queueCommand('<getKCurrentLayout/>')
 			})
 
 			self.socket.on('error', function (err) {
@@ -99,6 +294,8 @@ class KaleidoInstance extends InstanceBase {
 				var indata = buffer.toString('utf8')
 				self.incomingData(indata)
 			})
+		} else {
+			self.updateStatus(InstanceStatus.BadConfig, `IP address is missing`)
 		}
 	}
 
@@ -260,13 +457,13 @@ class KaleidoInstance extends InstanceBase {
 					{
 						type: 'textinput',
 						label: 'UMD text',
-						tooltip: 'Supports variables',
 						id: 'text',
 						default: '',
+						useVariables: true,
 					},
 				],
-				callback: async (event) => {
-					const text = await this.parseVariablesInString(event.options.text)
+				callback: async (event, context) => {
+					const text = await context.parseVariablesInString(event.options.text)
 					var command = `<setKDynamicText>set address="0" text="${text}"</setKDynamicText>`
 					self.queueCommand(command)
 				},
@@ -279,8 +476,8 @@ class KaleidoInstance extends InstanceBase {
 						type: 'dropdown',
 						label: 'Preset name',
 						id: 'name',
-						default: 'USER PRESET 1',
 						choices: self.presetNames,
+						default: self.presetNames !== undefined && self.presetNames.length > 0 ? self.presetNames[0].id : '',
 					},
 				],
 				callback: async (event) => {
@@ -291,6 +488,24 @@ class KaleidoInstance extends InstanceBase {
 		}
 
 		self.setActionDefinitions(actions)
+	}
+
+	initVariables() {
+		var variableDefinitions = []
+
+		variableDefinitions.push({
+			name: 'Software Version',
+			variableId: 'software_version',
+		})
+
+		variableDefinitions.push({
+			name: 'System Name',
+			variableId: 'system_name',
+		})
+
+		// TODO(Peter): Add and expose other variables
+
+		this.setVariableDefinitions(variableDefinitions)
 	}
 }
 

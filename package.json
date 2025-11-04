@@ -4,7 +4,9 @@
 	"main": "index.js",
 	"scripts": {
 		"format": "prettier -w .",
-		"test": "echo \"Error: no test specified\" && exit 1"
+		"package": "companion-module-build",
+		"test": "jest --silent=false",
+		"lint": "eslint"
 	},
 	"repository": {
 		"type": "git",
@@ -13,10 +15,13 @@
 	"license": "MIT",
 	"prettier": "@companion-module/tools/.prettierrc.json",
 	"dependencies": {
-		"@companion-module/base": "~1.12.0"
+		"@companion-module/base": "~1.12.0",
+		"xml2js": "^0.6.2"
 	},
 	"devDependencies": {
 		"@companion-module/tools": "^2.3.0",
+		"eslint": "^9.38.0",
+		"jest": "^29.7.0",
 		"prettier": "^3.6.2"
 	}
 }

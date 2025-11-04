@@ -1,0 +1,49 @@
+name: Node CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18.x, 22.x]
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Prepare Environment
+        run: |
+          yarn install
+        env:
+          CI: true
+      - name: prettier
+        run: |
+          yarn prettier --check .
+      #- name: eslint
+      #  run: |
+      #    yarn eslint .
+      - name: Test jest
+        run: |
+          yarn test
+        env:
+          CI: true
+          FORCE_COLOR: 2
+      - name: Test package
+        run: |
+          yarn companion-module-build
+        env:
+          CI: true
+      - name: Save artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: module
+          path: ${{github.workspace}}/pkg.tgz
