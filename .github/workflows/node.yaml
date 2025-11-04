@@ -36,6 +36,7 @@ jobs:
           yarn test
         env:
           CI: true
+          FORCE_COLOR: 2
       - name: Test package
         run: |
           yarn companion-module-build
