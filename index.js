@@ -22,6 +22,7 @@ class KaleidoInstance extends InstanceBase {
 
 		this.workingBuffer = ''
 		this.commandQueue = []
+		this.context = ''
 		this.roomNames = []
 		this.presetNames = []
 
@@ -129,6 +130,11 @@ class KaleidoInstance extends InstanceBase {
 					self.workingBuffer = ''
 					if (result.kRoomList !== undefined && result.kRoomList.room !== undefined) {
 						self.roomNames = result.kRoomList.room.map((ele) => ({ id: ele, label: ele }))
+						for (const room of result.kRoomList.room) {
+							self.queueCommand(`<openID>${room}</openID>`)
+							self.queueCommand('<getKCurrentLayout/>')
+							self.queueCommand('<closeID/>')
+						}
 					} else {
 						self.log('warn', "Didn't get any rooms, clearing the current list")
 						self.roomNames = []
@@ -158,25 +164,68 @@ class KaleidoInstance extends InstanceBase {
 			} else {
 				self.log('warn', 'Failed to parse parameter from: ' + self.workingBuffer)
 			}
-		} else if (
-			self.commandQueue[0] == `<openID>${self.config.host}_0_4_0_0</openID>` ||
-			self.commandQueue[0] == '<closeID/>'
-		) {
+		} else if (/^\s*<openID>[^<]+<\/openID>\s*$/.test(self.commandQueue[0])) {
+			await xml2js
+				.parseStringPromise(self.commandQueue[0])
+				.then(function (result) {
+					self.log('debug', 'Parsed data: ' + JSON.stringify(result))
+					if (result.openID !== undefined) {
+						if (result.openID == `${self.config.host}_0_4_0_0`) {
+							self.context = ''
+						} else {
+							self.log('debug', 'Got likely room context: ' + result.openID)
+							self.context = result.openID
+						}
+					} else {
+						self.log('warn', "Didn't get any context")
+					}
+					if (self.workingBuffer.trim() == '<nack/>') {
+						self.updateStatus(InstanceStatus.ConnectionFailure, 'Got NAck for command ' + self.commandQueue[0])
+						self.log('warn', 'Got NAck for command ' + self.commandQueue[0])
+						// Successful parse, clear buffer so we don't try and parse it again
+						self.workingBuffer = ''
+					} else if (self.workingBuffer.trim() == '<ack/>') {
+						self.updateStatus(InstanceStatus.Ok)
+						self.log('info', 'Got Ack for command ' + self.commandQueue[0])
+						// Successful parse, clear buffer so we don't try and parse it again
+						self.workingBuffer = ''
+					} else {
+						self.log('warn', 'Unknown response for command ' + self.commandQueue[0])
+					}
+				})
+				.catch(function (err) {
+					// Failed to parse
+					self.log('warn', 'Failed to parse data, invalid XML: ' + self.commandQueue[0])
+				})
+		} else if (self.commandQueue[0] == '<closeID/>') {
 			if (self.workingBuffer.trim() == '<nack/>') {
-				self.updateStatus(InstanceStatus.ConnectionFailure, 'Got NAck for command ' + this.commandQueue[0])
-				self.log('warn', 'Got NAck for command ' + this.commandQueue[0])
+				self.updateStatus(
+					InstanceStatus.UnknownError,
+					'Got NAck for command ' + self.commandQueue[0] + ' in context ' + self.context,
+				)
+				self.log('warn', 'Got NAck for command ' + self.commandQueue[0] + ' in context ' + self.context)
 				// Successful parse, clear buffer so we don't try and parse it again
 				self.workingBuffer = ''
 			} else if (self.workingBuffer.trim() == '<ack/>') {
-				self.updateStatus(InstanceStatus.Ok)
-				self.log('info', 'Got Ack for command ' + this.commandQueue[0])
+				if (self.context == '') {
+					// Implies connection closed
+					self.updateStatus(InstanceStatus.Disconnected)
+				} else {
+					// Switch to root level instead
+					self.context = ''
+				}
+				self.log('info', 'Got Ack for command ' + self.commandQueue[0] + ' in context ' + self.context)
 				// Successful parse, clear buffer so we don't try and parse it again
 				self.workingBuffer = ''
 			} else {
-				self.log('warn', 'Unknown response for command ' + this.commandQueue[0])
+				self.updateStatus(
+					InstanceStatus.UnknownError,
+					'Unknown response for command ' + self.commandQueue[0] + ' in context ' + self.context,
+				)
+				self.log('warn', 'Unknown response for command ' + self.commandQueue[0] + ' in context ' + self.context)
 			}
 		} else {
-			self.log('warn', 'Unhandled command in queue ' + this.commandQueue[0])
+			self.log('warn', 'Unhandled command in queue ' + self.commandQueue[0])
 		}
 
 		// Process end of responses, only move on if we've dealt with everything...

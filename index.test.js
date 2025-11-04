@@ -1,5 +1,6 @@
 // Import the necessary modules and classes
 const runEntrypoint = require('@companion-module/base').runEntrypoint
+const { InstanceStatus } = require('@companion-module/base')
 
 // Mock Companion to get the class
 jest.mock('@companion-module/base', () => {
@@ -20,9 +21,11 @@ describe('ModuleInstance', () => {
 
 	beforeEach(() => {
 		instance = new module('')
+		instance.config = { host: '1.2.3.4' }
 		instance.log = jest.fn()
 		instance.updateStatus = jest.fn()
 		instance.processQueue = jest.fn()
+		instance.context = ''
 		instance.workingBuffer = ''
 		instance.commandQueue = []
 		instance.roomNames = [{ id: 'FOO', label: 'FOO' }]
@@ -94,6 +97,36 @@ describe('ModuleInstance', () => {
 		afterEach(() => {
 			// Queue should have moved on after each test
 			expect(instance.processQueue).toHaveBeenCalled()
+		})
+
+		test('should handle successful initial open', async () => {
+			instance.commandQueue = ['<openID>1.2.3.4_0_4_0_0</openID>']
+			await instance.incomingData('<ack/>')
+			expect(instance.updateStatus).toHaveBeenCalledWith(InstanceStatus.Ok)
+		})
+
+		test('should handle unsuccessful initial open', async () => {
+			instance.commandQueue = ['<openID>1.2.3.4_0_4_0_0</openID>']
+			await instance.incomingData('<nack/>')
+			expect(instance.updateStatus).toHaveBeenCalledWith(
+				InstanceStatus.ConnectionFailure,
+				'Got NAck for command <openID>1.2.3.4_0_4_0_0</openID>',
+			)
+		})
+
+		test('should handle successful initial close', async () => {
+			instance.commandQueue = ['<closeID/>']
+			await instance.incomingData('<ack/>')
+			expect(instance.updateStatus).toHaveBeenCalledWith(InstanceStatus.Disconnected)
+		})
+
+		test('should handle unsuccessful initial close', async () => {
+			instance.commandQueue = ['<closeID/>']
+			await instance.incomingData('<nack/>')
+			expect(instance.updateStatus).toHaveBeenCalledWith(
+				InstanceStatus.UnknownError,
+				'Got NAck for command <closeID/> in context ',
+			)
 		})
 
 		test('should handle software version', async () => {

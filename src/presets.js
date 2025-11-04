@@ -8,20 +8,20 @@ module.exports = {
 
 		const colorWhite = combineRgb(255, 255, 255) // White
 		const colorBlack = combineRgb(0, 0, 0) // Black
-		const colorRed = combineRgb(255, 0, 0) // Red
-		const colorGreen = combineRgb(0, 255, 0) // Green
+		//const colorRed = combineRgb(255, 0, 0) // Red
+		//const colorGreen = combineRgb(0, 255, 0) // Green
 		const colorYellow = combineRgb(255, 255, 0) // Yellow
-		const colorAmber = combineRgb(255, 137, 0) // Amber
-		const colorBlue = combineRgb(0, 0, 255) // Blue
+		//const colorAmber = combineRgb(255, 137, 0) // Amber
+		//const colorBlue = combineRgb(0, 0, 255) // Blue
 
 		const foregroundColorDefault = colorWhite
 		const foregroundColorAlternative = colorBlack
 		const backgroundColorDefault = colorBlack
 		const backgroundColorPresetSelected = colorYellow
 
-		for (const preset of self.presetNames.sort(function (a, b) {
-			return a.label.localeCompare(b.label)
-		})) {
+		for (const preset of self.presetNames) {
+			// TODO(Peter): Sort without affecting the underlying info.
+			// .sort(function (a, b) {return a.label.localeCompare(b.label)})
 			//self.log('debug', 'Found detail for preset ' + JSON.stringify(preset))
 			/*presets[`layout_${preset.id}`] = {
 				category: `Layouts`,
