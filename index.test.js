@@ -276,6 +276,16 @@ describe('ModuleInstance', () => {
 					'Unhandled command in queue <getKFoo/> in context ',
 				)
 			})
+
+			test('should handle gratuitous data', async () => {
+				// E.g. if we didn't originally handle all of an unknown command successfully
+				instance.commandQueue = []
+				await instance.incomingData('</kFoo>')
+				expect(instance.updateStatus).toHaveBeenCalledWith(
+					InstanceStatus.UnknownError,
+					'Got data without command in context ',
+				)
+			})
 		})
 
 		describe('producing commands', () => {
