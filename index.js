@@ -164,28 +164,30 @@ class KaleidoInstance extends InstanceBase {
 			} else {
 				self.log('warn', 'Failed to parse parameter from: ' + self.workingBuffer)
 			}
-		} else if ((/^\s*<setKCurrentLayout>set [^<]+<\/setKCurrentLayout>\s*$/.test(self.commandQueue[0]) ||
-				   (/^\s*<setKDynamicText>set [^<]+<\/setKDynamicText>\s*$/.test(self.commandQueue[0]) ||
-				   (/^\s*<setKStatusMessage>set [^<]+<\/setKStatusMessage>\s*$/.test(self.commandQueue[0]))) {
+		} else if (
+			/^\s*<setKCurrentLayout>set [^<]+<\/setKCurrentLayout>\s*$/.test(self.commandQueue[0]) ||
+			/^\s*<setKDynamicText>set [^<]+<\/setKDynamicText>\s*$/.test(self.commandQueue[0]) ||
+			/^\s*<setKStatusMessage>set [^<]+<\/setKStatusMessage>\s*$/.test(self.commandQueue[0])
+		) {
 			if (self.workingBuffer.trim() == '<nack/>') {
-	            self.updateStatus(
-                	InstanceStatus.UnknownError,
-                    'Got NAck for command ' + self.commandQueue[0] + ' in context ' + self.context,
-                )
-                self.log('warn', 'Got NAck for command ' + self.commandQueue[0] + ' in context ' + self.context)
-                // Successful parse, clear buffer so we don't try and parse it again
-                self.workingBuffer = ''
+				self.updateStatus(
+					InstanceStatus.UnknownError,
+					'Got NAck for command ' + self.commandQueue[0] + ' in context ' + self.context,
+				)
+				self.log('warn', 'Got NAck for command ' + self.commandQueue[0] + ' in context ' + self.context)
+				// Successful parse, clear buffer so we don't try and parse it again
+				self.workingBuffer = ''
 			} else if (self.workingBuffer.trim() == '<ack/>') {
-            	self.log('info', 'Got Ack for command ' + self.commandQueue[0] + ' in context ' + self.context)
-                	// Successful parse, clear buffer so we don't try and parse it again
-                    self.workingBuffer = ''
-                } else {
-                	self.updateStatus(
-                    	InstanceStatus.UnknownError,
-                        'Unknown response for command ' + self.commandQueue[0] + ' in context ' + self.context,
-                    )
+				self.log('info', 'Got Ack for command ' + self.commandQueue[0] + ' in context ' + self.context)
+				// Successful parse, clear buffer so we don't try and parse it again
+				self.workingBuffer = ''
+			} else {
+				self.updateStatus(
+					InstanceStatus.UnknownError,
+					'Unknown response for command ' + self.commandQueue[0] + ' in context ' + self.context,
+				)
 				self.log('warn', 'Unknown response for command ' + self.commandQueue[0] + ' in context ' + self.context)
-            }
+			}
 		} else if (/^\s*<openID>[^<]+<\/openID>\s*$/.test(self.commandQueue[0])) {
 			await xml2js
 				.parseStringPromise(self.commandQueue[0])
