@@ -241,6 +241,21 @@ describe('ModuleInstance', () => {
 				])
 			})
 
+			test('should handle setting layout', async () => {
+				instance.commandQueue = ['<setKCurrentLayout>set </setKCurrentLayout>']
+				await instance.incomingData('<ack/>')
+			})
+
+			test('should handle setting UMD text', async () => {
+				instance.commandQueue = ['<setKDynamicText>set address="0" text="Foo"</setKDynamicText>']
+				await instance.incomingData('<ack/>')
+			})
+
+			test('should handle setting status message', async () => {
+				instance.commandQueue = ['<setKStatusMessage>set id="1" status="MINOR"</setKStatusMessage>']
+				await instance.incomingData('<ack/>')
+			})
+
 			test('should handle getting room list with no rooms', async () => {
 				instance.commandQueue = ['<getKRoomList/>']
 				await instance.incomingData('<kRoomList></kRoomList>')
