@@ -249,7 +249,14 @@ class KaleidoInstance extends InstanceBase {
 				self.log('warn', 'Unknown response for command ' + self.commandQueue[0] + ' in context ' + self.context)
 			}
 		} else {
+			// This shouldn't happen unless something has gone wrong, or we've sent a command we've forgotten to add above...
+			self.updateStatus(
+				InstanceStatus.UnknownError,
+				'Unhandled command in queue ' + self.commandQueue[0] + ' in context ' + self.context,
+			)
 			self.log('warn', 'Unhandled command in queue ' + self.commandQueue[0])
+			// Ignore and move onto the next thing; hoping that we've got the whole response already
+			self.workingBuffer = ''
 		}
 
 		// Process end of responses, only move on if we've dealt with everything...

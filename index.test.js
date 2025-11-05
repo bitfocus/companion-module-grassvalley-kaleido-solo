@@ -242,7 +242,7 @@ describe('ModuleInstance', () => {
 			})
 
 			test('should handle setting layout', async () => {
-				instance.commandQueue = ['<setKCurrentLayout>set </setKCurrentLayout>']
+				instance.commandQueue = ['<setKCurrentLayout>set Layout 1</setKCurrentLayout>']
 				await instance.incomingData('<ack/>')
 			})
 
@@ -266,6 +266,15 @@ describe('ModuleInstance', () => {
 				instance.commandQueue = ['<getKRoomList/>']
 				await instance.incomingData('<kRoomList/>')
 				expect(instance.roomNames).toEqual([])
+			})
+
+			test('should handle unknown command', async () => {
+				instance.commandQueue = ['<getKFoo/>']
+				await instance.incomingData('<kFoo>Bar</kFoo>')
+				expect(instance.updateStatus).toHaveBeenCalledWith(
+					InstanceStatus.UnknownError,
+					'Unhandled command in queue <getKFoo/> in context ',
+				)
 			})
 		})
 
