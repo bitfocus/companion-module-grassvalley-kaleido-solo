@@ -164,7 +164,9 @@ class KaleidoInstance extends InstanceBase {
 			} else {
 				self.log('warn', 'Failed to parse parameter from: ' + self.workingBuffer)
 			}
-		} else if (/^\s*<setKCurrentLayout>set [^<]+<\/setKCurrentLayout>\s*$/.test(self.commandQueue[0])) {
+		} else if ((/^\s*<setKCurrentLayout>set [^<]+<\/setKCurrentLayout>\s*$/.test(self.commandQueue[0]) ||
+				   (/^\s*<setKDynamicText>set [^<]+<\/setKDynamicText>\s*$/.test(self.commandQueue[0]) ||
+				   (/^\s*<setKStatusMessage>set [^<]+<\/setKStatusMessage>\s*$/.test(self.commandQueue[0]))) {
 			if (self.workingBuffer.trim() == '<nack/>') {
 	            self.updateStatus(
                 	InstanceStatus.UnknownError,
