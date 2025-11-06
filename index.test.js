@@ -62,9 +62,15 @@ describe('ModuleInstance', () => {
 				key: 'systemName',
 				value: 'Cougar-X',
 			})
+			// Without space in name
 			expect(instance.parseKeyValueResponse('<kCurrentLayout>name="CurrentLayout.kg2"</kCurrentLayout>')).toEqual({
 				key: 'name',
 				value: 'CurrentLayout.kg2',
+			})
+			// With space in name
+			expect(instance.parseKeyValueResponse('<kCurrentLayout>name="Current Layout.kg2"</kCurrentLayout>')).toEqual({
+				key: 'name',
+				value: 'Current Layout.kg2',
 			})
 			// Empty value
 			expect(instance.parseKeyValueResponse('<kParameterInfo>foo=""</kParameterInfo>')).toEqual({
@@ -160,20 +166,19 @@ describe('ModuleInstance', () => {
 
 			test('should handle current layout for K2 or Kaleido Software', async () => {
 				instance.commandQueue = ['<getKCurrentLayout/>']
-				await instance.incomingData('<kCurrentLayout>name="CurrentLayout.kg2"</kCurrentLayout>')
+				await instance.incomingData('<kCurrentLayout>name="Current Layout.kg2"</kCurrentLayout>')
 				expect(instance.setVariableValues).toHaveBeenCalledWith({
-					current_layout: 'CurrentLayout.kg2',
+					current_layout: 'Current Layout.kg2',
 				})
 			})
 
 			/*test('should handle getting layout list for Solo', async () => {
 				instance.commandQueue = ['<getKLayoutList/>']
-				// This is reverse engineered guesswork based on what the original code did...
-				await instance.incomingData('<kLayoutList>"Layout1.xml" "Layout2.xml" "AnAvailableLayout.xml"</kLayoutList>')
+				await instance.incomingData('<kLayoutList>"USER PRESET 1" "USER PRESET 2" "USER PRESET 3" </kLayoutList>')
 				expect(instance.presetNames).toEqual([
-					{ id: 'Layout1.xml', label: 'Layout1.xml' },
-					{ id: 'Layout2.xml', label: 'Layout2.xml' },
-					{ id: 'AnAvailableLayout.xml', label: 'AnAvailableLayout.xml' },
+					{ id: 'USER PRESET 1', label: 'USER PRESET 1' },
+					{ id: 'USER PRESET 2', label: 'USER PRESET 2' },
+					{ id: 'USER PRESET 3', label: 'USER PRESET 3' },
 				])
 			})*/
 
@@ -191,10 +196,10 @@ describe('ModuleInstance', () => {
 
 			test('should handle getting layout list for K2 or Kaleido Software without room', async () => {
 				instance.commandQueue = ['<getKLayoutList/>']
-				await instance.incomingData('<kLayoutList>Layout1.kg2 Layout2.kg2 AnAvailableLayout.kg2</kLayoutList>')
+				await instance.incomingData('<kLayoutList>Layout1.kg2 Layout 2.kg2 AnAvailableLayout.kg2</kLayoutList>')
 				expect(instance.presetNames).toEqual([
 					{ id: 'Layout1.kg2', label: 'Layout1' },
-					{ id: 'Layout2.kg2', label: 'Layout2' },
+					{ id: 'Layout 2.kg2', label: 'Layout 2' },
 					{ id: 'AnAvailableLayout.kg2', label: 'AnAvailableLayout' },
 				])
 			})
@@ -202,18 +207,18 @@ describe('ModuleInstance', () => {
 			test('should handle getting layout list for K2 or Kaleido Software with rooms', async () => {
 				instance.commandQueue = ['<getKLayoutList/>']
 				await instance.incomingData(
-					'<kLayoutList>ROOM1/Layout1.kg2 ROOM1/Layout2.kg2 ROOM2/AnAvailableLayout.kg2</kLayoutList>',
+					'<kLayoutList>ROOM1/Layout1.kg2 ROOM1/Layout 2.kg2 ROOM 2/AnAvailableLayout.kg2</kLayoutList>',
 				)
 				expect(instance.presetNames).toEqual([
 					{ id: 'ROOM1/Layout1.kg2', label: 'ROOM1/Layout1' },
-					{ id: 'ROOM1/Layout2.kg2', label: 'ROOM1/Layout2' },
-					{ id: 'ROOM2/AnAvailableLayout.kg2', label: 'ROOM2/AnAvailableLayout' },
+					{ id: 'ROOM1/Layout 2.kg2', label: 'ROOM1/Layout 2' },
+					{ id: 'ROOM 2/AnAvailableLayout.kg2', label: 'ROOM 2/AnAvailableLayout' },
 				])
 			})
 
 			test('should handle packetised layout list for K2 or Kaleido Software without rooms', async () => {
 				instance.commandQueue = ['<getKLayoutList/>']
-				await instance.incomingData('<kLayoutList>Layout1.kg2 Layout2.kg2')
+				await instance.incomingData('<kLayoutList>Layout1.kg2 Layout 2.kg2')
 				expect(instance.processQueue).not.toHaveBeenCalled()
 				expect(instance.workingBuffer).not.toEqual('')
 				// Should be the original, untouched, data as we've not successfully parsed info yet
@@ -221,23 +226,23 @@ describe('ModuleInstance', () => {
 				await instance.incomingData(' AnAvailableLayout.kg2</kLayoutList>')
 				expect(instance.presetNames).toEqual([
 					{ id: 'Layout1.kg2', label: 'Layout1' },
-					{ id: 'Layout2.kg2', label: 'Layout2' },
+					{ id: 'Layout 2.kg2', label: 'Layout 2' },
 					{ id: 'AnAvailableLayout.kg2', label: 'AnAvailableLayout' },
 				])
 			})
 
 			test('should handle packetised layout list for K2 or Kaleido Software with rooms', async () => {
 				instance.commandQueue = ['<getKLayoutList/>']
-				await instance.incomingData('<kLayoutList>ROOM1/Layout1.kg2 ROOM1/Layout2.kg2')
+				await instance.incomingData('<kLayoutList>ROOM1/Layout1.kg2 ROOM1/Layout 2.kg2')
 				expect(instance.processQueue).not.toHaveBeenCalled()
 				expect(instance.workingBuffer).not.toEqual('')
 				// Should be the original, untouched, data as we've not successfully parsed info yet
 				expect(instance.presetNames).toEqual([{ id: 'BAR.kg2', label: 'BAR' }])
-				await instance.incomingData(' ROOM2/AnAvailableLayout.kg2</kLayoutList>')
+				await instance.incomingData(' ROOM 2/AnAvailableLayout.kg2</kLayoutList>')
 				expect(instance.presetNames).toEqual([
 					{ id: 'ROOM1/Layout1.kg2', label: 'ROOM1/Layout1' },
-					{ id: 'ROOM1/Layout2.kg2', label: 'ROOM1/Layout2' },
-					{ id: 'ROOM2/AnAvailableLayout.kg2', label: 'ROOM2/AnAvailableLayout' },
+					{ id: 'ROOM1/Layout 2.kg2', label: 'ROOM1/Layout 2' },
+					{ id: 'ROOM 2/AnAvailableLayout.kg2', label: 'ROOM 2/AnAvailableLayout' },
 				])
 			})
 
@@ -296,23 +301,23 @@ describe('ModuleInstance', () => {
 
 			test('should handle getting room list with a single room', async () => {
 				instance.commandQueue = ['<getKRoomList/>']
-				await instance.incomingData('<kRoomList><room>ROOM1</room></kRoomList>')
-				expect(instance.roomNames).toEqual([{ id: 'ROOM1', label: 'ROOM1' }])
-				expect(instance.commandQueue).toEqual(['<openID>ROOM1</openID>', '<getKCurrentLayout/>', '<closeID/>'])
+				await instance.incomingData('<kRoomList><room>ROOM 1</room></kRoomList>')
+				expect(instance.roomNames).toEqual([{ id: 'ROOM 1', label: 'ROOM 1' }])
+				expect(instance.commandQueue).toEqual(['<openID>ROOM 1</openID>', '<getKCurrentLayout/>', '<closeID/>'])
 			})
 
 			test('should handle getting room list with multiple rooms', async () => {
 				instance.commandQueue = ['<getKRoomList/>']
-				await instance.incomingData('<kRoomList><room>ROOMA</room><room>ROOMB</room></kRoomList>')
+				await instance.incomingData('<kRoomList><room>ROOMA</room><room>ROOM B</room></kRoomList>')
 				expect(instance.roomNames).toEqual([
 					{ id: 'ROOMA', label: 'ROOMA' },
-					{ id: 'ROOMB', label: 'ROOMB' },
+					{ id: 'ROOM B', label: 'ROOM B' },
 				])
 				expect(instance.commandQueue).toEqual([
 					'<openID>ROOMA</openID>',
 					'<getKCurrentLayout/>',
 					'<closeID/>',
-					'<openID>ROOMB</openID>',
+					'<openID>ROOM B</openID>',
 					'<getKCurrentLayout/>',
 					'<closeID/>',
 				])
