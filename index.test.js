@@ -32,6 +32,7 @@ describe('ModuleInstance', () => {
 		instance.presetNames = [{ id: 'BAR.kg2', label: 'BAR' }]
 		instance.setVariableValues = jest.fn()
 		instance.setActionDefinitions = jest.fn()
+		instance.setPresetDefinitions = jest.fn()
 	})
 
 	afterEach(() => {
@@ -200,7 +201,7 @@ describe('ModuleInstance', () => {
 				})
 			})
 
-			/*test('should handle getting layout list for Solo', async () => {
+			test('should handle getting layout list for Solo', async () => {
 				instance.commandQueue = ['<getKLayoutList/>']
 				await instance.incomingData('<kLayoutList>"USER PRESET 1" "USER PRESET 2" "USER PRESET 3" </kLayoutList>')
 				expect(instance.presetNames).toEqual([
@@ -208,7 +209,22 @@ describe('ModuleInstance', () => {
 					{ id: 'USER PRESET 2', label: 'USER PRESET 2' },
 					{ id: 'USER PRESET 3', label: 'USER PRESET 3' },
 				])
-			})*/
+			})
+
+			test('should handle packetised layout list for Solo', async () => {
+				instance.commandQueue = ['<getKLayoutList/>']
+				await instance.incomingData('<kLayoutList>"USER PRESET 1" "USER PRESET 2"')
+				expect(instance.processQueue).not.toHaveBeenCalled()
+				expect(instance.workingBuffer).not.toEqual('')
+				// Should be the original, untouched, data as we've not successfully parsed info yet; technically would be no extension in reality
+				expect(instance.presetNames).toEqual([{ id: 'BAR.kg2', label: 'BAR' }])
+				await instance.incomingData(' "USER PRESET 3" </kLayoutList>')
+				expect(instance.presetNames).toEqual([
+					{ id: 'USER PRESET 1', label: 'USER PRESET 1' },
+					{ id: 'USER PRESET 2', label: 'USER PRESET 2' },
+					{ id: 'USER PRESET 3', label: 'USER PRESET 3' },
+				])
+			})
 
 			test('should handle getting layout list for K2 or Kaleido Software with no presets', async () => {
 				instance.commandQueue = ['<getKLayoutList/>']

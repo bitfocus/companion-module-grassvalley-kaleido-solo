@@ -100,13 +100,18 @@ class KaleidoInstance extends InstanceBase {
 								// Must be KX Software, K2, Alto or Quad format
 								const layoutExtension = matches[1]
 								// Deliberately add a space to the end so we can simplify the split
-								var rawList = (result.kLayoutList + ' ').split(/\.(?:kg2|xml) /)
+								let rawList = (result.kLayoutList + ' ').split(/\.(?:kg2|xml) /)
 								rawList = rawList.filter((ele) => ele.trim() != '')
 
 								self.log('info', 'Received presets:' + rawList)
 								self.presetNames = rawList.map((ele) => ({ id: ele + layoutExtension, label: ele }))
 							} else {
 								// TODO(Someone): Must be Solo format
+								let rawList = result.kLayoutList.trim().split('"')
+								rawList = rawList.filter((ele) => ele.trim() != '')
+
+								self.log('info', 'Received presets:' + rawList)
+								self.presetNames = rawList.map((ele) => ({ id: ele, label: ele }))
 							}
 							self.updateActions()
 						} else {
