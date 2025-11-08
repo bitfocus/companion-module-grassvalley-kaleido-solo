@@ -148,12 +148,24 @@ describe('ModuleInstance', () => {
 				})
 			})
 
+			test('should handle unsuccessful software version', async () => {
+				instance.commandQueue = ['<getParameterInfo>get key="softwareVersion"</getParameterInfo>']
+				await instance.incomingData('<nack/>')
+				expect(instance.updateStatus).not.toHaveBeenCalled()
+			})
+
 			test('should handle system name', async () => {
 				instance.commandQueue = ['<getParameterInfo>get key="systemName"</getParameterInfo>']
 				await instance.incomingData('<kParameterInfo>systemName="Cougar-X"</kParameterInfo>')
 				expect(instance.setVariableValues).toHaveBeenCalledWith({
 					system_name: 'Cougar-X',
 				})
+			})
+
+			test('should handle unsuccessful system name', async () => {
+				instance.commandQueue = ['<getParameterInfo>get key="systemName"</getParameterInfo>']
+				await instance.incomingData('<nack/>')
+				expect(instance.updateStatus).not.toHaveBeenCalled()
 			})
 
 			/*test('should handle current layout for Alto or Quad', async () => {
@@ -270,6 +282,13 @@ describe('ModuleInstance', () => {
 			test('should handle getting room list with no rooms, alternative format', async () => {
 				instance.commandQueue = ['<getKRoomList/>']
 				await instance.incomingData('<kRoomList/>')
+				expect(instance.roomNames).toEqual([])
+			})
+
+			test('should handle unsuccessful room list request', async () => {
+				instance.commandQueue = ['<getKRoomList/>']
+				await instance.incomingData('<nack/>')
+				expect(instance.updateStatus).not.toHaveBeenCalled()
 				expect(instance.roomNames).toEqual([])
 			})
 
