@@ -92,13 +92,22 @@ class KaleidoInstance extends InstanceBase {
 						self.log('debug', 'Parsed data: ' + JSON.stringify(result))
 						// Successful parse, clear buffer so we don't try and parse it again
 						self.workingBuffer = ''
-						if (result.kLayoutList !== undefined) {
-							// Deliberately add a space to the end so we can simplify the split
-							var rawList = (result.kLayoutList + ' ').split('.kg2 ')
-							rawList = rawList.filter((ele) => ele.trim() != '')
+						if (result.kLayoutList !== undefined && result.kLayoutList !== '') {
+							const findLayoutExtension = /(\.(?:kg2|xml))\s*$/
+							let matches = result.kLayoutList.match(findLayoutExtension)
 
-							self.log('info', 'Received presets:' + rawList)
-							self.presetNames = rawList.map((ele) => ({ id: ele + '.kg2', label: ele }))
+							if (matches !== null && matches.length == 2) {
+								// Must be KX Software, K2, Alto or Quad format
+								const layoutExtension = matches[1]
+								// Deliberately add a space to the end so we can simplify the split
+								var rawList = (result.kLayoutList + ' ').split(/\.(?:kg2|xml) /)
+								rawList = rawList.filter((ele) => ele.trim() != '')
+
+								self.log('info', 'Received presets:' + rawList)
+								self.presetNames = rawList.map((ele) => ({ id: ele + layoutExtension, label: ele }))
+							} else {
+								// TODO(Someone): Must be Solo format
+							}
 							self.updateActions()
 						} else {
 							self.log('warn', "Didn't get any presets, clearing the current list")

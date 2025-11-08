@@ -274,6 +274,31 @@ describe('ModuleInstance', () => {
 				])
 			})
 
+			test('should handle getting layout list for Alto or Quad', async () => {
+				instance.commandQueue = ['<getKLayoutList/>']
+				await instance.incomingData('<kLayoutList>Layout1.xml Layout 2.xml AnAvailableLayout.xml</kLayoutList>')
+				expect(instance.presetNames).toEqual([
+					{ id: 'Layout1.xml', label: 'Layout1' },
+					{ id: 'Layout 2.xml', label: 'Layout 2' },
+					{ id: 'AnAvailableLayout.xml', label: 'AnAvailableLayout' },
+				])
+			})
+
+			test('should handle packetised layout list for Alto or Quad', async () => {
+				instance.commandQueue = ['<getKLayoutList/>']
+				await instance.incomingData('<kLayoutList>Layout1.xml Layout 2.xml')
+				expect(instance.processQueue).not.toHaveBeenCalled()
+				expect(instance.workingBuffer).not.toEqual('')
+				// Should be the original, untouched, data as we've not successfully parsed info yet; technically would be .xml in reality
+				expect(instance.presetNames).toEqual([{ id: 'BAR.kg2', label: 'BAR' }])
+				await instance.incomingData(' AnAvailableLayout.xml</kLayoutList>')
+				expect(instance.presetNames).toEqual([
+					{ id: 'Layout1.xml', label: 'Layout1' },
+					{ id: 'Layout 2.xml', label: 'Layout 2' },
+					{ id: 'AnAvailableLayout.xml', label: 'AnAvailableLayout' },
+				])
+			})
+
 			test('should handle setting layout', async () => {
 				instance.commandQueue = ['<setKCurrentLayout>set Layout 1</setKCurrentLayout>']
 				await instance.incomingData('<ack/>')
