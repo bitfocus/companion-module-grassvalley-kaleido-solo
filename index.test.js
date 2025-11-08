@@ -168,13 +168,29 @@ describe('ModuleInstance', () => {
 				expect(instance.updateStatus).not.toHaveBeenCalled()
 			})
 
-			/*test('should handle current layout for Alto or Quad', async () => {
+			test('should handle current layout for Alto or Quad', async () => {
 				instance.commandQueue = ['<getKCurrentLayout/>']
 				await instance.incomingData('<kCurrentLayout>Currentlayout.xml</kCurrentLayout>')
 				expect(instance.setVariableValues).toHaveBeenCalledWith({
 					current_layout: 'Currentlayout.xml',
 				})
-			})*/
+			})
+
+			test('should handle current layout for Alto or Quad without layout', async () => {
+				instance.commandQueue = ['<getKCurrentLayout/>']
+				await instance.incomingData('<kCurrentLayout></kCurrentLayout>')
+				expect(instance.setVariableValues).toHaveBeenCalledWith({
+					current_layout: '',
+				})
+			})
+
+			test('should handle current layout for Alto or Quad without layout, alternative format', async () => {
+				instance.commandQueue = ['<getKCurrentLayout/>']
+				await instance.incomingData('<kCurrentLayout/>')
+				expect(instance.setVariableValues).toHaveBeenCalledWith({
+					current_layout: '',
+				})
+			})
 
 			test('should handle current layout for K2 or Kaleido Software', async () => {
 				instance.commandQueue = ['<getKCurrentLayout/>']

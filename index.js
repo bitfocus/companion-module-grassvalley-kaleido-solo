@@ -112,7 +112,7 @@ class KaleidoInstance extends InstanceBase {
 					})
 			} else if (self.commandQueue[0] == '<getKCurrentLayout/>') {
 				// <kCurrentLayout>name="foo.kg2"</kCurrentLayout>
-				if (self.workingBuffer == '<kCurrentLayout>') return
+				// <kCurrentLayout>bar.xml</kCurrentLayout>
 
 				// Extract the name...
 				let keyValue = self.parseKeyValueResponse(self.workingBuffer)
@@ -120,8 +120,26 @@ class KaleidoInstance extends InstanceBase {
 					// TODO(Peter): Deal with rooms in terms of variable names...
 					self.setVariableValues({ current_layout: keyValue.value })
 				} else {
-					// TODO(Someone): Handle Alto or Quad
+					// Assume its an Alto or Quad and handle them
+					await xml2js
+						.parseStringPromise(self.workingBuffer)
+						.then(function (result) {
+							self.log('debug', 'Parsed data: ' + JSON.stringify(result))
+							// Successful parse, clear buffer so we don't try and parse it again
+							self.workingBuffer = ''
+							if (result.kCurrentLayout !== undefined) {
+								self.setVariableValues({ current_layout: result.kCurrentLayout })
+							} else {
+								self.log('warn', "Didn't get a current layout, clearing the current layout")
+								self.setVariableValues({ current_layout: undefined })
+							}
+						})
+						.catch(function (err) {
+							// Failed to parse
+							self.log('warn', 'Failed to parse data, either invalid XML or partial packet data: ' + self.workingBuffer)
+						})
 				}
+				// TODO(Peter): Update feedbacks when implemented
 			} else if (self.commandQueue[0] == '<getKRoomList/>') {
 				if (self.workingBuffer.trim() == '<nack/>') {
 					self.log('warn', 'Got NAck for command ' + self.commandQueue[0] + ' in context ' + self.context)
