@@ -133,8 +133,8 @@ class KaleidoInstance extends InstanceBase {
 				if (keyValue !== undefined) {
 					// TODO(Peter): Deal with rooms in terms of variable names...
 					self.setVariableValues({ current_layout: keyValue.value })
-				} else {
-					// Assume its an Alto or Quad and handle them
+				} else if (self.workingBuffer !== '') {
+					// If not yet handled, assume its an Alto or Quad and handle them
 					await xml2js
 						.parseStringPromise(self.workingBuffer)
 						.then(function (result) {
@@ -274,6 +274,7 @@ class KaleidoInstance extends InstanceBase {
 					// Successful parse, clear buffer so we don't try and parse it again
 					self.workingBuffer = ''
 				} else if (self.workingBuffer.trim() == '<ack/>') {
+					self.log('info', 'Got Ack for command ' + self.commandQueue[0] + ' in context ' + self.context)
 					if (self.context == '') {
 						// Implies connection closed
 						self.updateStatus(InstanceStatus.Disconnected)
@@ -281,7 +282,6 @@ class KaleidoInstance extends InstanceBase {
 						// Switch to root level instead
 						self.context = ''
 					}
-					self.log('info', 'Got Ack for command ' + self.commandQueue[0] + ' in context ' + self.context)
 					// Successful parse, clear buffer so we don't try and parse it again
 					self.workingBuffer = ''
 				} else {
@@ -361,9 +361,9 @@ class KaleidoInstance extends InstanceBase {
 				// Read layout names
 				self.queueCommand('<getKLayoutList/>')
 
-				// Per room...
 				// Read current layout
-				//self.queueCommand('<getKCurrentLayout/>')
+				// Per room (if present, handled later)...
+				self.queueCommand('<getKCurrentLayout/>')
 			})
 
 			self.socket.on('error', function (err) {
