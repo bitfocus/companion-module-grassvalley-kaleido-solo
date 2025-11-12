@@ -46,4 +46,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: module
-          path: ${{github.workspace}}/pkg.tgz
+          path: ${{github.workspace}}/*.tgz
