@@ -33,6 +33,7 @@ describe('ModuleInstance', () => {
 		instance.setVariableValues = jest.fn()
 		instance.setActionDefinitions = jest.fn()
 		instance.setPresetDefinitions = jest.fn()
+		instance.setVariableDefinitions = jest.fn()
 	})
 
 	afterEach(() => {
@@ -201,6 +202,15 @@ describe('ModuleInstance', () => {
 				})
 			})
 
+			test('should handle current layout for K2 or Kaleido Software with room context', async () => {
+				instance.commandQueue = ['<getKCurrentLayout/>']
+				instance.context = 'FOO'
+				await instance.incomingData('<kCurrentLayout>name="Current Layout.kg2"</kCurrentLayout>')
+				expect(instance.setVariableValues).toHaveBeenCalledWith({
+					current_layout_FOO: 'Current Layout.kg2',
+				})
+			})
+
 			test('should handle getting layout list for Solo', async () => {
 				instance.commandQueue = ['<getKLayoutList/>']
 				await instance.incomingData('<kLayoutList>"USER PRESET 1" "USER PRESET 2" "USER PRESET 3" </kLayoutList>')
@@ -334,12 +344,40 @@ describe('ModuleInstance', () => {
 				instance.commandQueue = ['<getKRoomList/>']
 				await instance.incomingData('<kRoomList></kRoomList>')
 				expect(instance.roomNames).toEqual([])
+				expect(instance.setVariableDefinitions).toHaveBeenCalledWith([
+					{
+						name: 'Software Version',
+						variableId: 'software_version',
+					},
+					{
+						name: 'System Name',
+						variableId: 'system_name',
+					},
+					{
+						name: 'Current Layout',
+						variableId: 'current_layout',
+					},
+				])
 			})
 
 			test('should handle getting room list with no rooms, alternative format', async () => {
 				instance.commandQueue = ['<getKRoomList/>']
 				await instance.incomingData('<kRoomList/>')
 				expect(instance.roomNames).toEqual([])
+				expect(instance.setVariableDefinitions).toHaveBeenCalledWith([
+					{
+						name: 'Software Version',
+						variableId: 'software_version',
+					},
+					{
+						name: 'System Name',
+						variableId: 'system_name',
+					},
+					{
+						name: 'Current Layout',
+						variableId: 'current_layout',
+					},
+				])
 			})
 
 			test('should handle unsuccessful room list request', async () => {
@@ -347,6 +385,20 @@ describe('ModuleInstance', () => {
 				await instance.incomingData('<nack/>')
 				expect(instance.updateStatus).not.toHaveBeenCalled()
 				expect(instance.roomNames).toEqual([])
+				expect(instance.setVariableDefinitions).toHaveBeenCalledWith([
+					{
+						name: 'Software Version',
+						variableId: 'software_version',
+					},
+					{
+						name: 'System Name',
+						variableId: 'system_name',
+					},
+					{
+						name: 'Current Layout',
+						variableId: 'current_layout',
+					},
+				])
 			})
 
 			test('should handle unknown command', async () => {
@@ -380,6 +432,20 @@ describe('ModuleInstance', () => {
 				await instance.incomingData('<kRoomList><room>ROOM 1</room></kRoomList>')
 				expect(instance.roomNames).toEqual([{ id: 'ROOM 1', label: 'ROOM 1' }])
 				expect(instance.commandQueue).toEqual(['<openID>ROOM 1</openID>', '<getKCurrentLayout/>', '<closeID/>'])
+				expect(instance.setVariableDefinitions).toHaveBeenCalledWith([
+					{
+						name: 'Software Version',
+						variableId: 'software_version',
+					},
+					{
+						name: 'System Name',
+						variableId: 'system_name',
+					},
+					{
+						name: 'Current Layout ROOM 1',
+						variableId: 'current_layout_ROOM 1',
+					},
+				])
 			})
 
 			test('should handle getting room list with multiple rooms', async () => {
@@ -396,6 +462,24 @@ describe('ModuleInstance', () => {
 					'<openID>ROOM B</openID>',
 					'<getKCurrentLayout/>',
 					'<closeID/>',
+				])
+				expect(instance.setVariableDefinitions).toHaveBeenCalledWith([
+					{
+						name: 'Software Version',
+						variableId: 'software_version',
+					},
+					{
+						name: 'System Name',
+						variableId: 'system_name',
+					},
+					{
+						name: 'Current Layout ROOMA',
+						variableId: 'current_layout_ROOMA',
+					},
+					{
+						name: 'Current Layout ROOM B',
+						variableId: 'current_layout_ROOM B',
+					},
 				])
 			})
 

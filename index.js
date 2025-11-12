@@ -132,7 +132,14 @@ class KaleidoInstance extends InstanceBase {
 				let keyValue = self.parseKeyValueResponse(self.workingBuffer)
 				if (keyValue !== undefined) {
 					// TODO(Peter): Deal with rooms in terms of variable names...
-					self.setVariableValues({ current_layout: keyValue.value })
+					let variables = {}
+					if (self.context !== undefined && self.context !== '') {
+						variables[`current_layout_${self.context}`] = keyValue.value
+					} else {
+						// Assuming no rooms returned...
+						variables['current_layout'] = keyValue.value
+					}
+					self.setVariableValues(variables)
 				} else if (self.workingBuffer !== '') {
 					// If not yet handled, assume its an Alto or Quad and handle them
 					await xml2js
@@ -161,6 +168,7 @@ class KaleidoInstance extends InstanceBase {
 					self.workingBuffer = ''
 					self.log('warn', 'Got NAck when fetching rooms, clearing the current list')
 					self.roomNames = []
+					self.initVariables()
 				} else {
 					await xml2js
 						.parseStringPromise(self.workingBuffer)
@@ -179,6 +187,8 @@ class KaleidoInstance extends InstanceBase {
 								self.log('warn', "Didn't get any rooms, clearing the current list")
 								self.roomNames = []
 							}
+							// Update room variables either way
+							self.initVariables()
 						})
 						.catch(function (err) {
 							// Failed to parse
@@ -585,6 +595,19 @@ class KaleidoInstance extends InstanceBase {
 		})
 
 		// TODO(Peter): Add and expose other variables
+		if (this.roomNames.length > 0) {
+			for (const room of this.roomNames) {
+				variableDefinitions.push({
+					name: `Current Layout ${room.label}`,
+					variableId: `current_layout_${room.id}`,
+				})
+			}
+		} else {
+			variableDefinitions.push({
+				name: `Current Layout`,
+				variableId: `current_layout`,
+			})
+		}
 
 		this.setVariableDefinitions(variableDefinitions)
 	}
