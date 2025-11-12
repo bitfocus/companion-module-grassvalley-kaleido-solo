@@ -178,6 +178,14 @@ describe('ModuleInstance', () => {
 				})
 			})
 
+			test('should handle current layout for Solo', async () => {
+				instance.commandQueue = ['<getKCurrentLayout/>']
+				await instance.incomingData('<kCurrentLayout>USER PRESET 1</kCurrentLayout>')
+				expect(instance.setVariableValues).toHaveBeenCalledWith({
+					current_layout: 'USER PRESET 1',
+				})
+			})
+		
 			test('should handle current layout for Alto or Quad without layout', async () => {
 				instance.commandQueue = ['<getKCurrentLayout/>']
 				await instance.incomingData('<kCurrentLayout></kCurrentLayout>')
