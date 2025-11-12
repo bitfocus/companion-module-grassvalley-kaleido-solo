@@ -185,7 +185,7 @@ describe('ModuleInstance', () => {
 					current_layout: 'USER PRESET 1',
 				})
 			})
-		
+
 			test('should handle current layout for Alto or Quad without layout', async () => {
 				instance.commandQueue = ['<getKCurrentLayout/>']
 				await instance.incomingData('<kCurrentLayout></kCurrentLayout>')
