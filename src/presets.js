@@ -29,14 +29,6 @@ module.exports = {
 				type: 'text',
 			}*/
 
-			var roomDividerLocation = preset.id.indexOf('/')
-			var roomName = ''
-			var layoutName = preset.id
-			if (roomDividerLocation >= 0) {
-				roomName = preset.id.substring(0, roomDividerLocation)
-				layoutName = preset.id.substring(roomDividerLocation + 1)
-			}
-
 			presets[`layout_${preset.id}`] = {
 				category: `Layouts`,
 				name: `Layout ${preset.label}`,
@@ -53,7 +45,7 @@ module.exports = {
 							color: foregroundColorAlternative,
 							bgcolor: backgroundColorPresetSelected,
 						},
-						options: { room: roomName, layout: layoutName },
+						options: self.splitLayout(preset.id),
 					},
 				],
 				steps: [

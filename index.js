@@ -54,6 +54,19 @@ class KaleidoInstance extends InstanceBase {
 		this.init_tcp()
 	}
 
+	splitLayout(data) {
+		if (data !== undefined) {
+			var roomDividerLocation = data.indexOf('/')
+			if (roomDividerLocation >= 0) {
+				return { room: data.substring(0, roomDividerLocation), layout: data.substring(roomDividerLocation + 1) }
+			} else {
+				return { room: '', layout: data }
+			}
+		} else {
+			return undefined
+		}
+	}
+
 	parseKeyValueResponse(data) {
 		if (data !== undefined) {
 			if (data.trim() == '<nack/>') {
@@ -244,6 +257,21 @@ class KaleidoInstance extends InstanceBase {
 					self.log('info', 'Got Ack for command ' + self.commandQueue[0] + ' in context ' + self.context)
 					// Successful parse, clear buffer so we don't try and parse it again
 					self.workingBuffer = ''
+
+					const setKCurrentLayout = /^\s*<setKCurrentLayout>set ([^<]+)<\/setKCurrentLayout>\s*$/
+					let matches = self.commandQueue[0].match(setKCurrentLayout)
+
+					// If setKCurrentLayout, queue a layout poll
+					if (matches !== null && matches.length == 2) {
+						const layoutParts = self.splitLayout(matches[1])
+						if (layoutParts !== undefined && layoutParts.room == '') {
+							self.queueCommand('<getKCurrentLayout/>')
+						} else {
+							self.queueCommand(`<openID>${layoutParts.room}</openID>`)
+							self.queueCommand('<getKCurrentLayout/>')
+							self.queueCommand('<closeID/>')
+						}
+					}
 				} else {
 					self.updateStatus(
 						InstanceStatus.UnknownError,
