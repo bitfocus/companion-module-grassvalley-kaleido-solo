@@ -45,5 +45,5 @@ jobs:
       - name: Save artifact
         uses: actions/upload-artifact@v4
         with:
-          name: module
-          path: ${{github.workspace}}/pkg.tgz
+          name: module-${{ matrix.node-version }}
+          path: ${{github.workspace}}/*.tgz
