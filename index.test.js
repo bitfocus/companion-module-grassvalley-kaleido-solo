@@ -12,6 +12,11 @@ jest.mock('@companion-module/base', () => {
 	}
 })
 
+const mockContext = {
+	// For now, just do nothing and confirm it's been called
+	parseVariablesInString: jest.fn((string) => string),
+}
+
 // Define the test suite for ModuleInstance
 describe('ModuleInstance', () => {
 	let instance
@@ -30,8 +35,10 @@ describe('ModuleInstance', () => {
 		instance.commandQueue = []
 		instance.roomNames = [{ id: 'FOO', label: 'FOO' }]
 		instance.presetNames = [{ id: 'BAR.kg2', label: 'BAR' }]
+		instance.checkFeedbacks = jest.fn()
 		instance.setVariableValues = jest.fn()
 		instance.setActionDefinitions = jest.fn()
+		instance.setFeedbackDefinitions = jest.fn()
 		instance.setPresetDefinitions = jest.fn()
 		instance.setVariableDefinitions = jest.fn()
 	})
@@ -44,9 +51,6 @@ describe('ModuleInstance', () => {
 	describe('getConfigFields', () => {
 		test('should return an array of config fields', () => {
 			// Invoke the method
-			instance.config = {
-				supportsManualAdjustments: false,
-			}
 			const configFields = instance.getConfigFields()
 
 			// Assertions
@@ -497,6 +501,116 @@ describe('ModuleInstance', () => {
 				expect(instance.setVariableValues).toHaveBeenCalledWith({
 				})
 			})*/
+		})
+	})
+
+	describe('feedbacks', () => {
+		describe('getFeedbacks', () => {
+			test('getFeedbacks has required feedbacks', () => {
+				const feedbacks = instance.getFeedbacks()
+				expect(feedbacks).toHaveProperty('current_layout')
+			})
+		})
+
+		describe('test feedbacks', () => {
+			const currentLayoutCheckNoRoom = {
+				id: 'abcd1234',
+				type: 'boolean',
+				feedbackId: 'current_layout',
+				options: {
+					room: '',
+					layout: 'foo.kg2',
+				},
+				_page: 0,
+				_bank: 0,
+				_rawBank: 'test',
+				controlId: 'control0',
+			}
+
+			const currentLayoutCheckRoom = {
+				id: 'abcd1234',
+				type: 'boolean',
+				feedbackId: 'current_layout',
+				options: {
+					room: 'BAZ',
+					layout: 'foo.kg2',
+				},
+				_page: 0,
+				_bank: 0,
+				_rawBank: 'test',
+				controlId: 'control0',
+			}
+
+			const currentLayoutCheckOtherRoom = {
+				id: 'abcd1234',
+				type: 'boolean',
+				feedbackId: 'current_layout',
+				options: {
+					room: 'BAK',
+					layout: 'foo.kg2',
+				},
+				_page: 0,
+				_bank: 0,
+				_rawBank: 'test',
+				controlId: 'control0',
+			}
+
+			test('current layout feedback without room to match', async () => {
+				instance.commandQueue = ['<getKCurrentLayout/>']
+				await instance.incomingData('<kCurrentLayout>name="foo.kg2"</kCurrentLayout>')
+
+				const feedbacks = instance.getFeedbacks()
+				await expect(feedbacks.current_layout.callback(currentLayoutCheckNoRoom, mockContext)).resolves.toBe(true)
+				expect(mockContext.parseVariablesInString).toHaveBeenCalled()
+			})
+
+			test('current layout feedback without room to not match', async () => {
+				instance.commandQueue = ['<getKCurrentLayout/>']
+				await instance.incomingData('<kCurrentLayout>name="bar.kg2"</kCurrentLayout>')
+
+				const feedbacks = instance.getFeedbacks()
+				await expect(feedbacks.current_layout.callback(currentLayoutCheckNoRoom, mockContext)).resolves.toBe(false)
+				expect(mockContext.parseVariablesInString).toHaveBeenCalled()
+			})
+
+			test('current layout feedback with room to match', async () => {
+				instance.commandQueue = ['<getKCurrentLayout/>']
+				instance.context = 'BAZ'
+				await instance.incomingData('<kCurrentLayout>name="foo.kg2"</kCurrentLayout>')
+
+				const feedbacks = instance.getFeedbacks()
+				await expect(feedbacks.current_layout.callback(currentLayoutCheckRoom, mockContext)).resolves.toBe(true)
+				expect(mockContext.parseVariablesInString).toHaveBeenCalled()
+			})
+
+			test('current layout feedback with room to not match', async () => {
+				instance.commandQueue = ['<getKCurrentLayout/>']
+				instance.context = 'BAZ'
+				await instance.incomingData('<kCurrentLayout>name="bar.kg2"</kCurrentLayout>')
+
+				const feedbacks = instance.getFeedbacks()
+				await expect(feedbacks.current_layout.callback(currentLayoutCheckRoom, mockContext)).resolves.toBe(false)
+				expect(mockContext.parseVariablesInString).toHaveBeenCalled()
+			})
+
+			test('current layout feedback with other room to not match', async () => {
+				instance.commandQueue = ['<getKCurrentLayout/>']
+				instance.context = 'BAZ'
+				await instance.incomingData('<kCurrentLayout>name="bar.kg2"</kCurrentLayout>')
+
+				const feedbacks = instance.getFeedbacks()
+				await expect(feedbacks.current_layout.callback(currentLayoutCheckOtherRoom, mockContext)).resolves.toBe(false)
+				expect(mockContext.parseVariablesInString).toHaveBeenCalled()
+			})
+		})
+
+		describe('initFeedbacks', () => {
+			test('initFeedbacks should set feedbacks', () => {
+				// Invoke the method
+				instance.initFeedbacks()
+
+				expect(instance.setFeedbackDefinitions).toHaveBeenCalled()
+			})
 		})
 	})
 })

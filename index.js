@@ -1,6 +1,7 @@
 const { InstanceBase, runEntrypoint, TelnetHelper, InstanceStatus } = require('@companion-module/base')
 const UpgradeScripts = require('./upgrades')
 
+const feedbacks = require('./src/feedbacks')
 const presets = require('./src/presets')
 
 const xml2js = require('xml2js')
@@ -11,8 +12,13 @@ class KaleidoInstance extends InstanceBase {
 
 		// Assign the methods from the listed files to this class
 		Object.assign(this, {
+			...feedbacks,
 			...presets,
 		})
+
+		this.DATA = {
+			rooms: [],
+		}
 	}
 
 	async init(config) {
@@ -27,6 +33,7 @@ class KaleidoInstance extends InstanceBase {
 		this.presetNames = []
 
 		this.updateActions() // export actions
+		this.initFeedbacks() // export feedbacks
 		this.initVariables() // export variables
 
 		this.init_tcp()
@@ -131,12 +138,13 @@ class KaleidoInstance extends InstanceBase {
 				// Extract the name...
 				let keyValue = self.parseKeyValueResponse(self.workingBuffer)
 				if (keyValue !== undefined) {
-					// TODO(Peter): Deal with rooms in terms of variable names...
 					let variables = {}
 					if (self.context !== undefined && self.context !== '') {
+						self.DATA.rooms[self.context] = keyValue.value
 						variables[`current_layout_${self.context}`] = keyValue.value
 					} else {
 						// Assuming no rooms returned...
+						self.DATA.rooms[''] = keyValue.value
 						variables['current_layout'] = keyValue.value
 					}
 					self.setVariableValues(variables)
@@ -149,9 +157,11 @@ class KaleidoInstance extends InstanceBase {
 							// Successful parse, clear buffer so we don't try and parse it again
 							self.workingBuffer = ''
 							if (result.kCurrentLayout !== undefined) {
+								self.DATA.rooms[''] = result.kCurrentLayout
 								self.setVariableValues({ current_layout: result.kCurrentLayout })
 							} else {
 								self.log('warn', "Didn't get a current layout, clearing the current layout")
+								self.DATA.rooms[''] = undefined
 								self.setVariableValues({ current_layout: undefined })
 							}
 						})
@@ -160,7 +170,7 @@ class KaleidoInstance extends InstanceBase {
 							self.log('warn', 'Failed to parse data, either invalid XML or partial packet data: ' + self.workingBuffer)
 						})
 				}
-				// TODO(Peter): Update feedbacks when implemented
+				self.checkFeedbacks()
 			} else if (self.commandQueue[0] == '<getKRoomList/>') {
 				if (self.workingBuffer.trim() == '<nack/>') {
 					self.log('warn', 'Got NAck for command ' + self.commandQueue[0] + ' in context ' + self.context)

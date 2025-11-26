@@ -28,6 +28,15 @@ module.exports = {
 				name: `Layout ${preset.name}`,
 				type: 'text',
 			}*/
+
+			var roomDividerLocation = preset.id.indexOf('/')
+			var roomName = ''
+			var layoutName = preset.id
+			if (roomDividerLocation >= 0) {
+				roomName = preset.id.substring(0, roomDividerLocation)
+				layoutName = preset.id.substring(roomDividerLocation + 1)
+			}
+
 			presets[`layout_${preset.id}`] = {
 				category: `Layouts`,
 				name: `Layout ${preset.label}`,
@@ -39,12 +48,12 @@ module.exports = {
 				},
 				feedbacks: [
 					{
-						feedbackId: 'currentLayout',
+						feedbackId: 'current_layout',
 						style: {
 							color: foregroundColorAlternative,
 							bgcolor: backgroundColorPresetSelected,
 						},
-						options: { preset: preset.id },
+						options: { room: roomName, layout: layoutName },
 					},
 				],
 				steps: [
