@@ -28,6 +28,7 @@ module.exports = {
 				name: `Layout ${preset.name}`,
 				type: 'text',
 			}*/
+
 			presets[`layout_${preset.id}`] = {
 				category: `Layouts`,
 				name: `Layout ${preset.label}`,
@@ -39,12 +40,12 @@ module.exports = {
 				},
 				feedbacks: [
 					{
-						feedbackId: 'currentLayout',
+						feedbackId: 'current_layout',
 						style: {
 							color: foregroundColorAlternative,
 							bgcolor: backgroundColorPresetSelected,
 						},
-						options: { preset: preset.id },
+						options: self.splitLayout(preset.id),
 					},
 				],
 				steps: [
