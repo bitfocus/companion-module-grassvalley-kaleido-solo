@@ -191,7 +191,7 @@ class KaleidoInstance extends InstanceBase {
 					self.workingBuffer = ''
 					self.log('warn', 'Got NAck when fetching rooms, clearing the current list')
 					self.roomNames = []
-					self.updateActions()
+					self.initFeedbacks()
 					self.initVariables()
 				} else {
 					await xml2js
@@ -212,7 +212,7 @@ class KaleidoInstance extends InstanceBase {
 								self.roomNames = []
 							}
 							// Update room data usage either way
-							self.updateActions()
+							self.initFeedbacks()
 							self.initVariables()
 						})
 						.catch(function (err) {

@@ -360,7 +360,7 @@ describe('ModuleInstance', () => {
 				instance.commandQueue = ['<getKRoomList/>']
 				await instance.incomingData('<kRoomList></kRoomList>')
 				expect(instance.roomNames).toEqual([])
-				expect(instance.setActionDefinitions).toHaveBeenCalled()
+				expect(instance.setFeedbackDefinitions).toHaveBeenCalled()
 				expect(instance.setVariableDefinitions).toHaveBeenCalledWith([
 					{
 						name: 'Software Version',
@@ -381,7 +381,7 @@ describe('ModuleInstance', () => {
 				instance.commandQueue = ['<getKRoomList/>']
 				await instance.incomingData('<kRoomList/>')
 				expect(instance.roomNames).toEqual([])
-				expect(instance.setActionDefinitions).toHaveBeenCalled()
+				expect(instance.setFeedbackDefinitions).toHaveBeenCalled()
 				expect(instance.setVariableDefinitions).toHaveBeenCalledWith([
 					{
 						name: 'Software Version',
@@ -403,7 +403,7 @@ describe('ModuleInstance', () => {
 				await instance.incomingData('<nack/>')
 				expect(instance.updateStatus).not.toHaveBeenCalled()
 				expect(instance.roomNames).toEqual([])
-				expect(instance.setActionDefinitions).toHaveBeenCalled()
+				expect(instance.setFeedbackDefinitions).toHaveBeenCalled()
 				expect(instance.setVariableDefinitions).toHaveBeenCalledWith([
 					{
 						name: 'Software Version',
@@ -451,7 +451,7 @@ describe('ModuleInstance', () => {
 				await instance.incomingData('<kRoomList><room>ROOM 1</room></kRoomList>')
 				expect(instance.roomNames).toEqual([{ id: 'ROOM 1', label: 'ROOM 1' }])
 				expect(instance.commandQueue).toEqual(['<openID>ROOM 1</openID>', '<getKCurrentLayout/>', '<closeID/>'])
-				expect(instance.setActionDefinitions).toHaveBeenCalled()
+				expect(instance.setFeedbackDefinitions).toHaveBeenCalled()
 				expect(instance.setVariableDefinitions).toHaveBeenCalledWith([
 					{
 						name: 'Software Version',
@@ -483,7 +483,7 @@ describe('ModuleInstance', () => {
 					'<getKCurrentLayout/>',
 					'<closeID/>',
 				])
-				expect(instance.setActionDefinitions).toHaveBeenCalled()
+				expect(instance.setFeedbackDefinitions).toHaveBeenCalled()
 				expect(instance.setVariableDefinitions).toHaveBeenCalledWith([
 					{
 						name: 'Software Version',
